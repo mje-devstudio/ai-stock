@@ -1,0 +1,445 @@
+{
+    "tr_id": "kt00004",
+    "tr_name": "계좌평가현황요청",
+    "category": {
+        "main": "국내주식",
+        "sub": "계좌"
+    },
+    "usage": {
+        "description": "사용자 계좌의 예수금, 유가잔고평가액, 총매입금액, 누적투자손익, 수익률 등의 전체 자금 현황(싱글 데이터)을 조회함과 동시에, 현재 계좌에 보유 중인 주식, ELW, ETN 등 개별 종목들의 보유 수량, 평균단가, 평가손익 및 손익률 목록(멀티 데이터 LIST)을 한 번에 일괄 반환합니다.",
+        "method": "POST",
+        "environment_domains": {
+            "production": "https://api.kiwoom.com",
+            "mock_investment": "https://mockapi.kiwoom.com (KRX만 지원가능)"
+        },
+        "url_path": "/api/dostk/acnt",
+        "format": "JSON",
+        "content_type": "application/json;charset=UTF-8"
+    },
+    "request": {
+        "headers": [
+            {
+                "element": "api-id",
+                "name_ko": "TR명",
+                "type": "String",
+                "required": true,
+                "length": "10",
+                "description": "7자리 TR코드를 세팅합니다. 이 TR의 경우 'kt00004'를 입력합니다."
+            },
+            {
+                "element": "authorization",
+                "name_ko": "접근토큰",
+                "type": "String",
+                "required": true,
+                "length": "1000",
+                "description": "발급받은 Access Token 앞에 'Bearer ' 접두사를 결합하여 헤더에 포함합니다."
+            },
+            {
+                "element": "cont-yn",
+                "name_ko": "연속조회여부",
+                "type": "String",
+                "required": false,
+                "length": "1",
+                "description": "보유 종목이 많아 다음 페이지가 존재할 경우 응답 Header의 cont-yn값이 Y로 전달됩니다. 다음 데이터 요청 시 이 값을 그대로 세팅합니다. (최초 조회 시 'N' 또는 생략)"
+            },
+            {
+                "element": "next-key",
+                "name_ko": "연속조회키",
+                "type": "String",
+                "required": false,
+                "length": "50",
+                "description": "응답 Header의 cont-yn값이 Y일 경우 다음 페이지 데이터를 호출하기 위해 응답받은 next-key값을 그대로 세팅합니다."
+            }
+        ],
+        "body": [
+            {
+                "element": "qry_tp",
+                "name_ko": "상장폐지조회구분",
+                "type": "String",
+                "required": true,
+                "length": "1",
+                "description": "0: 전체 조회, 1: 상장폐지종목 제외"
+            },
+            {
+                "element": "dmst_stex_tp",
+                "name_ko": "국내거래소구분",
+                "type": "String",
+                "required": true,
+                "length": "6",
+                "description": "KRX: 한국거래소, NXT: 넥스트트레이드(대체거래소)"
+            }
+        ]
+    },
+    "response": {
+        "headers": [
+            {
+                "element": "api-id",
+                "name_ko": "TR명",
+                "type": "String",
+                "required": true,
+                "length": "10",
+                "description": "수행 완료된 TR코드인 'kt00004'가 반환됩니다."
+            },
+            {
+                "element": "cont-yn",
+                "name_ko": "연속조회여부",
+                "type": "String",
+                "required": false,
+                "length": "1",
+                "description": "멀티 데이터(보유 종목)가 다음 페이지에 추가로 더 존재할 경우 Y값이 반환됩니다."
+            },
+            {
+                "element": "next-key",
+                "name_ko": "연속조회키",
+                "type": "String",
+                "required": false,
+                "length": "50",
+                "description": "다음 페이지 조회를 위한 연속 키 데이터입니다."
+            }
+        ],
+        "body": [
+            {
+                "element": "acnt_nm",
+                "name_ko": "계좌명",
+                "type": "String",
+                "required": false,
+                "length": "30",
+                "description": "계좌 소유주의 이름이 반환됩니다."
+            },
+            {
+                "element": "brch_nm",
+                "name_ko": "지점명",
+                "type": "String",
+                "required": false,
+                "length": "30",
+                "description": "계좌가 개설된 관리 지점명입니다."
+            },
+            {
+                "element": "entr",
+                "name_ko": "예수금",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 숫자입니다."
+            },
+            {
+                "element": "d2_entra",
+                "name_ko": "D+2추정예수금",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리장 정산 추정 예수금입니다."
+            },
+            {
+                "element": "tot_est_amt",
+                "name_ko": "유가잔고평가액",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 보유 주식 평가액 합산입니다."
+            },
+            {
+                "element": "aset_evlt_amt",
+                "name_ko": "예탁자산평가액",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 총 예탁 자산금액입니다."
+            },
+            {
+                "element": "tot_pur_amt",
+                "name_ko": "총매입금액",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 보유 종목 매입 총액입니다."
+            },
+            {
+                "element": "prsm_dpst_aset_amt",
+                "name_ko": "추정예탁자산",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 자산 추정치입니다."
+            },
+            {
+                "element": "tot_grnt_sella",
+                "name_ko": "매도담보대출금",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 대출 금액입니다."
+            },
+            {
+                "element": "tdy_lspft_amt",
+                "name_ko": "당일투자원금",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 자금입니다."
+            },
+            {
+                "element": "invt_bsamt",
+                "name_ko": "당월투자원금",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 자금입니다."
+            },
+            {
+                "element": "lspft_amt",
+                "name_ko": "누적투자원금",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 자금입니다."
+            },
+            {
+                "element": "tdy_lspft",
+                "name_ko": "당일투자손익",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 자금입니다."
+            },
+            {
+                "element": "lspft2",
+                "name_ko": "당월투자손익",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 자금입니다."
+            },
+            {
+                "element": "lspft",
+                "name_ko": "누적투자손익",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 전체 누적 손익금액입니다."
+            },
+            {
+                "element": "tdy_lspft_rt",
+                "name_ko": "당일손익율",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: %, 소수점 둘째 자리까지 포맷된 백분율 문자열입니다."
+            },
+            {
+                "element": "lspft_ratio",
+                "name_ko": "당월손익율",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: %, 소수점 둘째 자리까지 포맷된 백분율 문자열입니다."
+            },
+            {
+                "element": "lspft_rt",
+                "name_ko": "누적손익율",
+                "type": "String",
+                "required": false,
+                "length": "12",
+                "description": "단위: %, 소수점 둘째 자리까지 포맷된 백분율 문자열입니다."
+            },
+            {
+                "element": "stk_acnt_evlt_prst",
+                "name_ko": "종목별계좌평가현황",
+                "type": "LIST",
+                "required": false,
+                "length": null,
+                "description": "현재 계좌가 보유 중인 국내 자산 개별 종목 리스트입니다.",
+                "child_elements": [
+                    {
+                        "element": "stk_cd",
+                        "name_ko": "종목코드",
+                        "type": "String",
+                        "length": "12",
+                        "description": "접두어 1자리 + 종목코드 6자리 구조입니다. 접두어 매핑 규격: (A: 주식 / J: ELW / Q: ETN)"
+                    },
+                    {
+                        "element": "stk_nm",
+                        "name_ko": "종목명",
+                        "type": "String",
+                        "length": "30",
+                        "description": "보유 종목의 한글 명칭입니다."
+                    },
+                    {
+                        "element": "rmnd_qty",
+                        "name_ko": "보유수량",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 1주, 좌측 0-padding 처리된 부호 포함 12자리 숫자입니다."
+                    },
+                    {
+                        "element": "avg_prc",
+                        "name_ko": "평균단가",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 숫자(매입 평단가)입니다."
+                    },
+                    {
+                        "element": "cur_prc",
+                        "name_ko": "현재가",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 실시간 현재 가격입니다."
+                    },
+                    {
+                        "element": "evlt_amt",
+                        "name_ko": "평가금액",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 현재 평가 잔액입니다."
+                    },
+                    {
+                        "element": "pl_amt",
+                        "name_ko": "손익금액",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 종목별 개별 손익금입니다."
+                    },
+                    {
+                        "element": "pl_rt",
+                        "name_ko": "손익율",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: %, 소수점 넷째 자리까지 포맷된 개별 종목 수익률 백분율입니다."
+                    },
+                    {
+                        "element": "loan_dt",
+                        "name_ko": "대출일",
+                        "type": "String",
+                        "length": "10",
+                        "description": "신용융자 자산일 경우 대출 실행일(YYYYMMDD)이 반환됩니다."
+                    },
+                    {
+                        "element": "pur_amt",
+                        "name_ko": "매입금액",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 원, 좌측 0-padding 처리된 부호 포함 12자리 개별 총 매입원금입니다."
+                    },
+                    {
+                        "element": "setl_remn",
+                        "name_ko": "결제잔고",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 1주, 좌측 0-padding 처리된 부호 포함 12자리 결제 기준 주수입니다."
+                    },
+                    {
+                        "element": "pred_buyq",
+                        "name_ko": "전일매수수량",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 1주, 좌측 0-padding 처리된 부호 포함 12자리 숫자입니다."
+                    },
+                    {
+                        "element": "pred_sellq",
+                        "name_ko": "전일매도수량",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 1주, 좌측 0-padding 처리된 부호 포함 12자리 숫자입니다."
+                    },
+                    {
+                        "element": "tdy_buyq",
+                        "name_ko": "금일매수수량",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 1주, 좌측 0-padding 처리된 부호 포함 12자리 숫자입니다."
+                    },
+                    {
+                        "element": "tdy_sellq",
+                        "name_ko": "금일매도수량",
+                        "type": "String",
+                        "length": "12",
+                        "description": "단위: 1주, 좌측 0-padding 처리된 부호 포함 12자리 숫자입니다."
+                    }
+                ]
+            },
+            {
+                "element": "return_code",
+                "name_ko": "결과코드",
+                "type": "Number",
+                "required": true,
+                "length": null,
+                "description": "성공 처리 시 0을 반환합니다."
+            },
+            {
+                "element": "return_msg",
+                "name_ko": "결과메시지",
+                "type": "String",
+                "required": true,
+                "length": null,
+                "description": "처리 상태 설명 메시지입니다."
+            }
+        ]
+    },
+    "examples": {
+        "request_example": {
+            "headers": {
+                "api-id": "kt00004",
+                "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "Content-Type": "application/json;charset=UTF-8"
+            },
+            "body": {
+                "qry_tp": "0",
+                "dmst_stex_tp": "KRX"
+            }
+        },
+        "response_example": {
+            "headers": {
+                "api-id": "kt00004",
+                "cont-yn": "N",
+                "next-key": ""
+            },
+            "body": {
+                "acnt_nm": "김키움",
+                "brch_nm": "키움본점",
+                "entr": "000000017534",
+                "d2_entra": "000000012550",
+                "tot_est_amt": "000000000342",
+                "aset_evlt_amt": "000000761950",
+                "tot_pur_amt": "000000002786",
+                "prsm_dpst_aset_amt": "000000749792",
+                "tot_grnt_sella": "000000000000",
+                "tdy_lspft_amt": "000000000000",
+                "invt_bsamt": "000000000000",
+                "lspft_amt": "000000000000",
+                "tdy_lspft": "000000000000",
+                "lspft2": "000000000000",
+                "lspft": "000000000000",
+                "tdy_lspft_rt": "0.00",
+                "lspft_ratio": "0.00",
+                "lspft_rt": "0.00",
+                "stk_acnt_evlt_prst": [
+                    {
+                        "stk_cd": "A005930",
+                        "stk_nm": "삼성전자",
+                        "rmnd_qty": "000000000003",
+                        "avg_prc": "000000124500",
+                        "cur_prc": "000000070000",
+                        "evlt_amt": "000000209542",
+                        "pl_amt": "-00000163958",
+                        "pl_rt": "-43.8977",
+                        "loan_dt": "",
+                        "pur_amt": "000000373500",
+                        "setl_remn": "000000000003",
+                        "pred_buyq": "000000000000",
+                        "pred_sellq": "000000000000",
+                        "tdy_buyq": "000000000000",
+                        "tdy_sellq": "000000000000"
+                    }
+                ],
+                "return_code": 0,
+                "return_msg": "조회가 완료되었습니다."
+            }
+        }
+    },
+    "precautions": [
+        "본 TR에서 반환되는 대부분의 금액 관련 숫자 필드(`entr`, `tot_est_amt`, `avg_prc`, `evlt_amt` 등)와 수량 필드는 가독성 포맷이 아닌 키움 원천 데이터 규격에 따라 좌측에 0이 채워진 패딩 구조(`0-padding 부호 포함 12자리`) 문자열로 전달됩니다. 자산 합산이나 조건문 연산을 처리할 때에는 반드시 앞자리의 0을 스트립하고 정수/실수형 데이터 타입으로 파싱 변환하여 활용해야 합니다.",
+        "멀티 데이터 리스트(`stk_acnt_evlt_prst`) 내부의 `stk_cd`(종목코드) 필드는 일반적인 6자리 숫자가 아니라, 자산의 종류를 식별하기 위한 알파벳 접두어 1자리가 가장 앞에 무조건 결합되어 7자리 형태(예: 주식은 `A005930`, ELW는 `J003622`, ETN은 `Q...`)로 리턴됩니다. 따라서 다른 시세 조회 TR(6자리 단축코드 요구)과 연동할 때는 맨 앞자리 알파벳 1글자를 제거하는 전처리 로직이 동반되어야 합니다.",
+        "개별 종목의 손익률(`pl_rt`) 필드는 다른 TR들과 다르게 **소수점 넷째 자리까지 포맷된 백분율 문자열**로 반환되므로 파싱 규격 매칭 시 정밀도 소수점 위치를 오해하지 않도록 주의해야 합니다.",
+        "국내거래소구분 파라미터(`dmst_stex_tp`)에 전통적인 한국거래소 시장 외에 새로 출범한 대체거래소 넥스트트레이드 시장 데이터까지 반영하여 정산하고자 할 경우 `NXT` 옵션을 정확히 세팅해야 하며, 모의투자 도메인 환경에서는 규격상 `KRX` 시장 데이터 정산만 제한적으로 지원될 수 있습니다."
+    ]
+}

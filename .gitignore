@@ -1,0 +1,4 @@
+temp_git/
+__pycache__/
+*.pyc
+*.log

@@ -1,0 +1,7 @@
+{
+    "renewal_time": "08:55",
+    "market_start_time": "09:00",
+    "market_end_time": "15:30",
+    "take_profit_ratio": 5.0,
+    "stop_loss_ratio": -2.0
+}

@@ -1,0 +1,9 @@
+[
+    {
+        "id": 1,
+        "time": "09:30",
+        "command": "srch 005930",
+        "once": true,
+        "last_run_date": ""
+    }
+]
