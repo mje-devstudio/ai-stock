@@ -23,7 +23,9 @@ def stts_command(args: list, chat_id: str = None) -> str:
         "market_start_time": "장 시작 시간",
         "market_end_time": "장 종료 시간",
         "take_profit_ratio": "익절 기준 (%)",
-        "stop_loss_ratio": "손절 기준 (%)"
+        "stop_loss_ratio": "손절 기준 (%)",
+        "gdcrs_short": "골든/데드크로스 단기 분봉",
+        "gdcrs_long": "골든/데드크로스 장기 분봉"
     }
     
     msg_lines = [

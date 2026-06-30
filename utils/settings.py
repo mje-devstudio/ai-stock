@@ -10,7 +10,9 @@ DEFAULT_SETTINGS = {
     "market_start_time": "09:00",
     "market_end_time": "15:30",
     "take_profit_ratio": 4.0,
-    "stop_loss_ratio": -3.0
+    "stop_loss_ratio": -3.0,
+    "gdcrs_short": 5,
+    "gdcrs_long": 20
 }
 
 def init_settings():

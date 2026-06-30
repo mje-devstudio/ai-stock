@@ -12,6 +12,7 @@ from telegram.commands.tpr import tpr_command
 from telegram.commands.slr import slr_command
 from telegram.commands.stls import start_command, stop_command
 from telegram.commands.rank import rank_command
+from telegram.commands.gdcrs import gdcrs_command
 
 # 명령어 등록 매핑
 COMMANDS = {
@@ -33,7 +34,8 @@ COMMANDS = {
     "start": start_command,
     "stop": stop_command,
     "rank": rank_command,
-    "rnk": rank_command
+    "rnk": rank_command,
+    "gdcrs": gdcrs_command
 }
 
 def dispatch_command(message_text: str, chat_id: str = None) -> str:
