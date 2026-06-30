@@ -1,4 +1,5 @@
-from api.stock import get_account_evaluation
+from api.stock import get_account_evaluation, get_daily_realized_profit
+from api.session import session
 from utils.stock_code import clean_stock_code
 
 def report_command(args: list, chat_id: str = None) -> str:
@@ -49,18 +50,48 @@ def report_command(args: list, chat_id: str = None) -> str:
     aset_evlt_amt = format_money(account_info.get("aset_evlt_amt"))
     tot_pur_amt = format_money(account_info.get("tot_pur_amt"))
     
-    lspft = format_money(account_info.get("lspft"))
-    lspft_rt = format_ratio(account_info.get("lspft_rt"))
-    
-    tdy_lspft = format_money(account_info.get("tdy_lspft"))
-    tdy_lspft_rt = format_ratio(account_info.get("tdy_lspft_rt"))
-    
-    # 누적/당일 손익의 부호에 따른 기호 설정
+    # 1. API에서 수신한 손익 정보 파싱
     lspft_val = parse_int(account_info.get("lspft"), 0)
-    lspft_sign = "+" if lspft_val > 0 else ""
-    
+    lspft_rt_val = parse_float(account_info.get("lspft_rt"), 0.0)
     tdy_lspft_val = parse_int(account_info.get("tdy_lspft"), 0)
+    tdy_lspft_rt_val = parse_float(account_info.get("tdy_lspft_rt"), 0.0)
+
+    # 2. 모의투자 또는 API 손익 값이 0인 경우에 대한 계산 처리
+    tot_pur_val = parse_int(account_info.get("tot_pur_amt"), 0)
+    
+    if (lspft_val == 0 and tdy_lspft_val == 0) or getattr(session, 'mode', 'real') == 'paper':
+        # (1) 보유 종목 평가손익 합산
+        holding_pl_sum = sum(parse_int(item.get("pl_amt"), 0) for item in holdings) if holdings else 0
+        
+        # (2) 당일 실현손익 API 호출
+        realized_pl = 0
+        realized_res = get_daily_realized_profit()
+        if realized_res["success"]:
+            realized_pl = parse_int(realized_res.get("rlzt_pl"), 0)
+            
+        # 누적투자손익 = 현재 보유 종목 평가손익 합계 + 당일 실현손익
+        lspft_val = holding_pl_sum + realized_pl
+        if tot_pur_val > 0:
+            lspft_rt_val = (lspft_val / tot_pur_val) * 100.0
+        else:
+            lspft_rt_val = 0.0
+            
+        # 당일투자손익 = 당일 실현손익
+        tdy_lspft_val = realized_pl
+        if tot_pur_val > 0:
+            tdy_lspft_rt_val = (realized_pl / tot_pur_val) * 100.0
+        else:
+            tdy_lspft_rt_val = 0.0
+            
+    # 기호 및 포맷팅 처리
+    lspft_sign = "+" if lspft_val > 0 else ""
     tdy_sign = "+" if tdy_lspft_val > 0 else ""
+    
+    lspft = f"{lspft_val:,}원"
+    lspft_rt = f"{lspft_rt_val:.2f}%"
+    tdy_lspft = f"{tdy_lspft_val:,}원"
+    tdy_lspft_rt = f"{tdy_lspft_rt_val:.2f}%"
+
 
     msg_lines = [
         "📋 자금 및 보유종목 현황",

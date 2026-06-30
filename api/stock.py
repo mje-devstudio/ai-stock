@@ -187,3 +187,52 @@ def get_daily_balance_ratio() -> dict:
         "success": True,
         "holdings": all_holdings
     }
+
+
+def get_daily_realized_profit() -> dict:
+    """
+    사용자 계좌의 당일 일자별 실현손익을 조회합니다 (ka10074).
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    import datetime
+    today_str = datetime.datetime.now().strftime("%Y%m%d")
+    
+    url = f"{session.host_url}/api/dostk/acnt"
+    
+    headers = {
+        "api-id": "ka10074",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    body = {
+        "strt_dt": today_str,
+        "end_dt": today_str
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=10)
+        
+        if response.status_code != 200:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+            
+        res_data = response.json()
+        res_body = res_data.get("body", res_data)
+        
+        return_code = res_body.get("return_code")
+        if return_code is not None and int(return_code) != 0:
+            return {"success": False, "error_msg": f"API 오류: {res_body.get('return_msg', '알 수 없는 오류')}"}
+            
+        return {
+            "success": True,
+            "rlzt_pl": res_body.get("rlzt_pl", "0"),
+            "trde_cmsn": res_body.get("trde_cmsn", "0"),
+            "trde_tax": res_body.get("trde_tax", "0"),
+            "tot_buy_amt": res_body.get("tot_buy_amt", "0"),
+            "tot_sell_amt": res_body.get("tot_sell_amt", "0")
+        }
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
