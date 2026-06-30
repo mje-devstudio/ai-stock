@@ -10,6 +10,7 @@ def help_command(args: list, chat_id: str = None) -> str:
         "🔍 [주식 조회 및 정보]",
         "• srch {종목코드/종목명}: 종목 현재가 및 정보 조회",
         "• rank / rnk: 시장 순위(거래대금/상승률/거래량/인기검색) 조회",
+        "• rank {번호} cmd {개수} {명령}: 순위 종목 대상 명령어 일괄 실행 (예: rank 4 cmd 15 gdcrs add () 100000)",
         "• report / r: 계좌 자금 현황 및 보유종목 조회",
         "",
         "💸 [주식 주문]",

@@ -70,6 +70,7 @@ def rank_command(args: list, chat_id: str = None) -> str:
     사용법:
       - rank: 순위 메뉴 안내
       - rank {번호}: 번호에 해당하는 기준의 상위 20개 종목 리스트 출력
+      - rank {번호} cmd {개수} {명령}: 순위 종목 대상 명령어 일괄 실행
     """
     # 메뉴 안내 메시지
     menu_msg = (
@@ -80,7 +81,10 @@ def rank_command(args: list, chat_id: str = None) -> str:
         "1. 거래대금 순위 (20위)\n"
         "2. 상승률 순위 (20위)\n"
         "3. 거래량 순위 (20위)\n"
-        "4. 인기검색 순위 (20위)\n"
+        "4. 인기검색 순위 (20위)\n\n"
+        "💡 [순위 종목 대상 일괄 명령어 실행]\n"
+        "형식: rank {번호} cmd {개수} {명령}\n"
+        "예: rank 4 cmd 15 gdcrs add () 100000\n"
         "━━━━━━━━━━━━━━━━━━━"
     )
 
@@ -90,6 +94,71 @@ def rank_command(args: list, chat_id: str = None) -> str:
     choice = args[0].strip()
     if choice not in ["1", "2", "3", "4"]:
         return f"올바르지 않은 번호입니다.\n\n{menu_msg}"
+
+    # 일괄 명령어 실행 분기 (rank {번호} cmd {개수} {명령})
+    if len(args) >= 2 and args[1].strip().lower() == "cmd":
+        if len(args) < 3:
+            return "사용법: rank {번호} cmd {개수} {명령}\n예: rank 4 cmd 15 gdcrs add () 100000"
+        try:
+            limit = int(args[2].strip())
+            if limit <= 0:
+                return "개수는 1 이상의 정수여야 합니다."
+        except ValueError:
+            return "개수는 정수로 입력해야 합니다."
+
+        if len(args) < 4:
+            return "실행할 명령어를 입력해주세요.\n예: rank 4 cmd 15 gdcrs add () 100000"
+            
+        cmd_pattern = " ".join(args[3:])
+        if "()" not in cmd_pattern:
+            return "명령 부분에 종목코드가 들어갈 괄호 ()가 포함되어야 합니다.\n예: rank 4 cmd 15 gdcrs add () 100000"
+
+        # 각 순위에 맞게 API 호출하여 목록 가져오기
+        if choice == "1":
+            res = get_trade_value_rank()
+        elif choice == "2":
+            res = get_fluctuation_rate_rank()
+        elif choice == "3":
+            res = get_trade_volume_rank()
+        else:
+            res = get_popular_search_rank()
+
+        if not res["success"]:
+            return f"순위 조회 실패\n- 사유: {res['error_msg']}"
+
+        items = res["data"]
+        if not items:
+            return "조회된 순위 데이터가 없어 명령을 실행할 수 없습니다."
+
+        # 슬라이싱 제한
+        target_items = items[:limit]
+        
+        # 순환 참조 방지를 위해 로컬 임포트
+        from telegram.commands import dispatch_command
+
+        results = [
+            f"⚙️ 순위 종목 대상 명령 일괄 실행 (총 {len(target_items)}건)",
+            "━━━━━━━━━━━━━━━━━━━"
+        ]
+
+        for idx, item in enumerate(target_items, 1):
+            stk_nm = item.get("stk_nm", "")
+            stk_cd = clean_stock_code(item.get("stk_cd", ""))
+            
+            # 플레이스홀더 () 치환
+            final_cmd = cmd_pattern.replace("()", stk_cd)
+            
+            # 명령어 실행
+            try:
+                res_str = dispatch_command(final_cmd, chat_id=chat_id)
+                summary = res_str.split("\n")[0].strip() if res_str else "결과 없음"
+            except Exception as e:
+                summary = f"실패 (에러: {e})"
+                
+            results.append(f"{idx}. {stk_nm} ({stk_cd}): {summary}")
+
+        results.append("━━━━━━━━━━━━━━━━━━━")
+        return "\n".join(results)
 
     if choice == "1":
         # 1. 거래대금 상위
