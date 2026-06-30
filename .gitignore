@@ -1,4 +1,20 @@
+# Git portable and temporary directories
 temp_git/
+.agents/
+scratch/
+
+# Python Cache
 __pycache__/
 *.pyc
+
+# Local logs
 *.log
+
+# Sensitive credentials and files
+config/config.py
+*appkey.txt
+*secretkey.txt
+
+# Local dynamic user settings
+config/data/settings.json
+config/data/reservations.json

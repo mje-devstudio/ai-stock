@@ -7,17 +7,17 @@ paper_host_url = "https://mockapi.kiwoom.com"
 paper_socket_url = "wss://mockapi.kiwoom.com:10000"
 
 # 실제투자용 앱 키와 시크릿
-real_app_key = "UTkpWN_w--TUAm6AVApZVgH7HMdh7H-Nihmn_o8NObg"
-real_app_secret = "QasZTgzh2BaA6zIJEGyTKADsf3Xqrthye2GVoqlpaJg"
+real_app_key = "YOUR_REAL_APP_KEY"
+real_app_secret = "YOUR_REAL_APP_SECRET"
 
 # 모의투자용 앱 키와 시크릿
-paper_app_key = "nAlQXqSthUrD9iGoskAMsNKn_8fBzMV1lJEVL0e1EKI"
-paper_app_secret = "vPR98y8OpZKGmsd3UgdLlZnje3W3W3BmapbTpHbUiq8"
+paper_app_key = "YOUR_PAPER_APP_KEY"
+paper_app_secret = "YOUR_PAPER_APP_SECRET"
 
 # 텔레그램용 챗 아이디와 토큰
-telegram_chat_id = "8464986738"
-telegram_token = "8971386649:AAHAVLMNlMFnLmB7pt4zWZ9Z-htju8dhg6g"
+telegram_chat_id = "YOUR_TELEGRAM_CHAT_ID"
+telegram_token = "YOUR_TELEGRAM_BOT_TOKEN"
 
 # 키움증권 계좌정보 (실제/모의 투자 공통으로 사용 시)
-account_no = "1234567890"  # 10자리 계좌번호
-account_pwd = "0000"       # 4자리 비밀번호
+account_no = "YOUR_ACCOUNT_NUMBER"  # 10자리 계좌번호
+account_pwd = "YOUR_ACCOUNT_PASSWORD"  # 4자리 비밀번호
