@@ -16,6 +16,8 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
             return "사용법: gdcrs intv {단기} {장기}\n예: gdcrs intv 5 20"
         short_str = args[1].strip()
         long_str = args[2].strip()
+    elif not args[0].isdigit():
+        return f"올바르지 않은 인수 유형입니다. 'intv' 오타인지 확인해 주세요.\n사용법: gdcrs intv {{단기}} {{장기}} 또는 gdcrs {{단기}} {{장기}}"
     else:
         if len(args) < 2:
             return "사용법: gdcrs intv {단기} {장기}\n예: gdcrs intv 5 20"
