@@ -236,3 +236,199 @@ def get_daily_realized_profit() -> dict:
     except Exception as e:
         return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
 
+
+def get_trade_value_rank() -> dict:
+    """
+    거래대금 상위 종목 리스트를 조회합니다 (ka10032).
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/rkinfo"
+    
+    headers = {
+        "api-id": "ka10032",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    body = {
+        "mrkt_tp": "000",
+        "mang_stk_incls": "1",
+        "stex_tp": "3"
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=10)
+        
+        if response.status_code != 200:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+            
+        res_data = response.json()
+        res_body = res_data.get("body", res_data)
+        
+        return_code = res_body.get("return_code")
+        if return_code is None:
+            return_code = res_body.get("returnCode")
+            
+        if return_code is not None and int(return_code) != 0:
+            return_msg = res_body.get("return_msg") or res_body.get("returnMsg") or "알 수 없는 오류"
+            return {"success": False, "error_msg": f"API 오류: {return_msg}"}
+            
+        return {
+            "success": True,
+            "data": res_body.get("trde_prica_upper", [])
+        }
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
+
+def get_fluctuation_rate_rank() -> dict:
+    """
+    전일대비 등락률 상위 종목 리스트를 조회합니다 (ka10027).
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/rkinfo"
+    
+    headers = {
+        "api-id": "ka10027",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    body = {
+        "mrkt_tp": "000",
+        "sort_tp": "1",
+        "trde_qty_cnd": "0000",
+        "stk_cnd": "0",
+        "crd_cnd": "0",
+        "updown_incls": "1",
+        "pric_cnd": "0",
+        "trde_prica_cnd": "0",
+        "stex_tp": "3"
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=10)
+        
+        if response.status_code != 200:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+            
+        res_data = response.json()
+        res_body = res_data.get("body", res_data)
+        
+        return_code = res_body.get("return_code")
+        if return_code is None:
+            return_code = res_body.get("returnCode")
+            
+        if return_code is not None and int(return_code) != 0:
+            return_msg = res_body.get("return_msg") or res_body.get("returnMsg") or "알 수 없는 오류"
+            return {"success": False, "error_msg": f"API 오류: {return_msg}"}
+            
+        return {
+            "success": True,
+            "data": res_body.get("pred_pre_flu_rt_upper", [])
+        }
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
+
+def get_trade_volume_rank() -> dict:
+    """
+    당일 거래량 상위 종목 리스트를 조회합니다 (ka10030).
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/rkinfo"
+    
+    headers = {
+        "api-id": "ka10030",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    body = {
+        "mrkt_tp": "000",
+        "sort_tp": "1",
+        "mang_stk_incls": "0",
+        "crd_tp": "0",
+        "trde_qty_tp": "0",
+        "pric_tp": "0",
+        "trde_prica_tp": "0",
+        "mrkt_open_tp": "0",
+        "stex_tp": "3"
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=10)
+        
+        if response.status_code != 200:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+            
+        res_data = response.json()
+        res_body = res_data.get("body", res_data)
+        
+        return_code = res_body.get("return_code")
+        if return_code is None:
+            return_code = res_body.get("returnCode")
+            
+        if return_code is not None and int(return_code) != 0:
+            return_msg = res_body.get("return_msg") or res_body.get("returnMsg") or "알 수 없는 오류"
+            return {"success": False, "error_msg": f"API 오류: {return_msg}"}
+            
+        return {
+            "success": True,
+            "data": res_body.get("tdy_trde_qty_upper", [])
+        }
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
+
+def get_popular_search_rank(qry_tp: str = "1") -> dict:
+    """
+    실시간 종목 조회 순위(인기 검색) 리스트를 조회합니다 (ka00198).
+    qry_tp: 1(1분), 2(10분), 3(1시간), 4(당일 누적), 5(30초)
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/stkinfo"
+    
+    headers = {
+        "api-id": "ka00198",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    body = {
+        "qry_tp": qry_tp
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=10)
+        
+        if response.status_code != 200:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+            
+        res_data = response.json()
+        res_body = res_data.get("body", res_data)
+        
+        return_code = res_body.get("return_code")
+        if return_code is None:
+            return_code = res_body.get("returnCode")
+            
+        if return_code is not None and int(return_code) != 0:
+            return_msg = res_body.get("return_msg") or res_body.get("returnMsg") or "알 수 없는 오류"
+            return {"success": False, "error_msg": f"API 오류: {return_msg}"}
+            
+        return {
+            "success": True,
+            "data": res_body.get("item_inq_rank", [])
+        }
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
+
