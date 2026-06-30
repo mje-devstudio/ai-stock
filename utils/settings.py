@@ -12,8 +12,11 @@ DEFAULT_SETTINGS = {
     "take_profit_ratio": 4.0,
     "stop_loss_ratio": -3.0,
     "gdcrs_short": 5,
-    "gdcrs_long": 20
+    "gdcrs_long": 20,
+    "ddcrs_short": 5,
+    "ddcrs_long": 20
 }
+
 
 def init_settings():
     """설정 디렉토리와 파일을 초기화합니다."""

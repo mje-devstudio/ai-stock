@@ -24,8 +24,12 @@ def stts_command(args: list, chat_id: str = None) -> str:
         "market_end_time": "장 종료 시간",
         "take_profit_ratio": "익절 기준 (%)",
         "stop_loss_ratio": "손절 기준 (%)",
-        "gdcrs_short": "골든/데드크로스 단기 분봉",
-        "gdcrs_long": "골든/데드크로스 장기 분봉"
+        "gdcrs_short": "골든크로스 단기 분봉",
+        "gdcrs_long": "골든크로스 장기 분봉",
+        "ddcrs_short": "데드크로스 단기 분봉",
+        "ddcrs_long": "데드크로스 장기 분봉",
+        "gdcrs_active": "골든크로스 감시 활성화",
+        "ddcrs_active": "데드크로스 감시 활성화"
     }
     
     msg_lines = [
@@ -37,13 +41,20 @@ def stts_command(args: list, chat_id: str = None) -> str:
     processed_keys = set()
     for key, desc in key_descriptions.items():
         if key in settings:
-            msg_lines.append(f"• {desc} ({key}): {settings[key]}")
+            val = settings[key]
+            if isinstance(val, bool):
+                val_str = "활성화" if val else "비활성화"
+            else:
+                val_str = str(val)
+            msg_lines.append(f"• {desc} ({key}): {val_str}")
             processed_keys.add(key)
             
     # 그 외 다른 동적 설정값도 출력
     for key, value in settings.items():
         if key not in processed_keys:
-            msg_lines.append(f"• {key} ({key}): {value}")
+            val_str = "활성화" if value is True else ("비활성화" if value is False else str(value))
+            msg_lines.append(f"• {key} ({key}): {val_str}")
+
             
     msg_lines.append("━━━━━━━━━━━━━━━━━━━")
     

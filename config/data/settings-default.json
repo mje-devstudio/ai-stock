@@ -5,5 +5,7 @@
     "take_profit_ratio": 1.0,
     "stop_loss_ratio": -1.0,
     "gdcrs_short": 5,
-    "gdcrs_long": 20
+    "gdcrs_long": 20,
+    "ddcrs_short": 5,
+    "ddcrs_long": 20
 }

@@ -1,5 +1,5 @@
 from utils.settings import set_setting
-from utils.gdcrs_targets import load_gdcrs_targets, add_gdcrs_target, remove_gdcrs_target_by_index
+from utils.gdcrs_targets import load_gdcrs_targets, add_gdcrs_target, remove_gdcrs_target_by_index, clear_gdcrs_targets
 from utils.stock_code import clean_stock_code
 
 def gdcrs_command(args: list, chat_id: str = None) -> str:
@@ -15,6 +15,8 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
          gdcrs list
       4. 감시 대상 삭제:
          gdcrs remove {번호} (예: gdcrs remove 1)
+      5. 감시 대상 목록 비우기:
+         gdcrs clear
     """
     if not args:
         return (
@@ -22,7 +24,8 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
             "• 분봉 값 설정: gdcrs intv {단기} {장기} (또는 gdcrs {단기} {장기})\n"
             "• 대상 종목 추가: gdcrs add {종목코드} {금액}\n"
             "• 대상 종목 목록: gdcrs list\n"
-            "• 대상 종목 삭제: gdcrs remove {번호}"
+            "• 대상 종목 삭제: gdcrs remove {번호}\n"
+            "• 대상 종목 목록 비우기: gdcrs clear"
         )
         
     subcmd = args[0].strip().lower()
@@ -80,6 +83,14 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
         else:
             return f"❌ 해당 번호({index})의 항목을 찾을 수 없거나 삭제에 실패했습니다."
             
+    # 3.5. 대상 종목 전체 삭제 (clear)
+    elif subcmd == "clear":
+        success = clear_gdcrs_targets()
+        if success:
+            return "✅ 골든크로스 감시 대상 목록이 모두 비워졌습니다."
+        else:
+            return "❌ 감시 대상 목록 비우기 중 오류가 발생했습니다."
+
     # 4. 분봉 값 설정 (intv 혹은 숫자 기입 분기)
     elif subcmd == "intv":
         if len(args) < 3:
@@ -95,8 +106,10 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
             "• 분봉 값 설정: gdcrs intv {단기} {장기} (또는 gdcrs {단기} {장기})\n"
             "• 대상 종목 추가: gdcrs add {종목코드} {금액}\n"
             "• 대상 종목 목록: gdcrs list\n"
-            "• 대상 종목 삭제: gdcrs remove {번호}"
+            "• 대상 종목 삭제: gdcrs remove {번호}\n"
+            "• 대상 종목 목록 비우기: gdcrs clear"
         )
+
         
     else:
         # gdcrs {단기} {장기} 형식 처리

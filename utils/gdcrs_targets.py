@@ -50,3 +50,9 @@ def remove_gdcrs_target_by_index(index: int) -> tuple:
     removed = targets.pop(index - 1)
     success = save_gdcrs_targets(targets)
     return success, removed
+
+
+def clear_gdcrs_targets() -> bool:
+    """골든크로스 감시 대상 종목 목록을 모두 삭제합니다."""
+    return save_gdcrs_targets([])
+

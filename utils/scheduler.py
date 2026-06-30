@@ -39,12 +39,51 @@ def scheduler_loop():
     logging.info("스케줄러 루프를 시작합니다.")
     last_renewal_date = None
     next_renewal_retry_time = None
+    last_gdcrs_restart_date = None
+    last_ddcrs_restart_date = None
     
     while True:
         try:
             now = datetime.datetime.now()
             today_str = now.strftime("%Y-%m-%d")
             current_time_str = now.strftime("%H:%M")
+            
+            # 1. 평일 장 시작 시간 골든크로스 감시 자동 재시작
+            market_start_time = get_setting("market_start_time") or "09:00"
+            if current_time_str == market_start_time and now.weekday() < 5 and last_gdcrs_restart_date != today_str:
+                if get_setting("gdcrs_active", False):
+                    send_notification("⏰ 평일 장 시작 시간이 되어 골든크로스 감시를 자동 재기동합니다...")
+                    try:
+                        from realtime.gdcrs_runner import GDCRSManager
+                        manager = GDCRSManager()
+                        if manager.active:
+                            manager.stop()
+                        start_res = manager.start()
+                        send_notification(f"🔄 골든크로스 재기동 결과: {start_res}")
+                        last_gdcrs_restart_date = today_str
+                    except Exception as gdcrs_err:
+                        send_notification(f"❌ 골든크로스 자동 재기동 실패: {gdcrs_err}")
+                else:
+                    last_gdcrs_restart_date = today_str
+
+            # 1.1. 평일 장 시작 시간 데드크로스 감시 자동 재시작
+            if current_time_str == market_start_time and now.weekday() < 5 and last_ddcrs_restart_date != today_str:
+                if get_setting("ddcrs_active", False):
+                    send_notification("⏰ 평일 장 시작 시간이 되어 데드크로스 감시를 자동 재기동합니다...")
+                    try:
+                        from realtime.ddcrs_runner import DDCRSManager
+                        manager = DDCRSManager()
+                        if manager.active:
+                            manager.stop()
+                        start_res = manager.start()
+                        send_notification(f"🔄 데드크로스 재기동 결과: {start_res}")
+                        last_ddcrs_restart_date = today_str
+                    except Exception as ddcrs_err:
+                        send_notification(f"❌ 데드크로스 자동 재기동 실패: {ddcrs_err}")
+                else:
+                    last_ddcrs_restart_date = today_str
+
+
             
             # 1. 토큰 자동 갱신 체크
             renewal_time = get_setting("renewal_time") or "08:55"
