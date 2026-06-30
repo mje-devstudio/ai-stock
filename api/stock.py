@@ -33,6 +33,48 @@ def get_stock_info(stk_cd: str) -> dict:
     except Exception as e:
         return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
 
+def get_stock_basic_info(stk_cd: str) -> dict:
+    """
+    주식기본정보요청 (ka10001) API를 통해 개별 종목의 기본 정보를 조회합니다.
+    """
+    stk_cd = clean_stock_code(stk_cd)
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/stkinfo"
+    
+    headers = {
+        "api-id": "ka10001",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    data = {
+        "stk_cd": stk_cd
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        
+        if response.status_code == 200:
+            res_data = response.json()
+            res_body = res_data.get("body", res_data)
+            
+            return_code = res_body.get("return_code")
+            if return_code is None:
+                return_code = res_body.get("returnCode")
+                
+            if return_code is not None and int(return_code) != 0:
+                return_msg = res_body.get("return_msg") or res_body.get("returnMsg") or "알 수 없는 오류"
+                return {"success": False, "error_msg": f"API 오류: {return_msg}"}
+                
+            return {"success": True, "data": res_data}
+        else:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
+
 
 def get_account_evaluation() -> dict:
     """
