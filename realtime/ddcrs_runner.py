@@ -188,7 +188,6 @@ class DDCRSManager:
                         success = self._init_candles(stk_cd)
                         if success:
                             ws_manager.register(stk_cd, self._process_tick)
-                        time.sleep(0.5)  # API 요청 속도 제한(429) 방지
                             
                 # Handle removed codes (sold or closed)
                 with self.lock:

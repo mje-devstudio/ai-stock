@@ -129,9 +129,6 @@ class JGGSManager:
                 # 명령어 실행
                 self._execute_mapped_commands(cond_id, stk_cd)
                 self.cmd_queue.task_done()
-                
-                # 키움증권 오픈API 초당 제한(TR 호출 약 5건/초) 우회를 위해 0.25초 대기
-                time.sleep(0.25)
             except Exception as e:
                 logger.error(f"JGGS 워커 스레드 루프 중 오류 발생: {e}")
                 time.sleep(1.0)
