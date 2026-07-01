@@ -32,6 +32,36 @@ def main():
         logging.info("모의투자 모드 로그인 성공!")
         if telegram_chat_id:
             reply_message(telegram_chat_id, "모의투자 자동 로그인에 성공했습니다.")
+            
+        # 기존에 활성화되어 있던 실시간 감시 서비스 자동 시작
+        from utils.settings import get_setting
+        
+        if get_setting("stls_active", False):
+            try:
+                from realtime.stls_runner import STLSManager
+                res = STLSManager().start()
+                logging.info(f"스탑로스 감시 자동 시작: {res}")
+                reply_message(telegram_chat_id, f"🔄 {res}")
+            except Exception as e:
+                logging.error(f"스탑로스 감시 자동 시작 실패: {e}")
+                
+        if get_setting("gdcrs_active", False):
+            try:
+                from realtime.gdcrs_runner import GDCRSManager
+                res = GDCRSManager().start()
+                logging.info(f"골든크로스 감시 자동 시작: {res}")
+                reply_message(telegram_chat_id, f"🔄 {res}")
+            except Exception as e:
+                logging.error(f"골든크로스 감시 자동 시작 실패: {e}")
+                
+        if get_setting("ddcrs_active", False):
+            try:
+                from realtime.ddcrs_runner import DDCRSManager
+                res = DDCRSManager().start()
+                logging.info(f"데드크로스 감시 자동 시작: {res}")
+                reply_message(telegram_chat_id, f"🔄 {res}")
+            except Exception as e:
+                logging.error(f"데드크로스 감시 자동 시작 실패: {e}")
     else:
         logging.error(f"모의투자 모드 로그인 실패: {auth_res.get('error_msg')}")
         if telegram_chat_id:

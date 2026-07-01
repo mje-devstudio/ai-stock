@@ -29,7 +29,8 @@ def stts_command(args: list, chat_id: str = None) -> str:
         "ddcrs_short": "데드크로스 단기 분봉",
         "ddcrs_long": "데드크로스 장기 분봉",
         "gdcrs_active": "골든크로스 감시 활성화",
-        "ddcrs_active": "데드크로스 감시 활성화"
+        "ddcrs_active": "데드크로스 감시 활성화",
+        "stls_active": "스탑로스 감시 활성화"
     }
     
     msg_lines = [

@@ -8,7 +8,7 @@ import requests
 from api.session import session
 from api.stock import get_daily_balance_ratio
 from api.order import sell_stock
-from utils.settings import get_setting
+from utils.settings import get_setting, set_setting
 from utils.stock_code import clean_stock_code
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ class STLSManager:
             self.slr = -abs(float(get_setting("stop_loss_ratio", 0.0)))
             
             self.active = True
+            set_setting("stls_active", True)
             self.tracked_stocks.clear()
             self.subscribed_codes.clear()
             
@@ -73,6 +74,7 @@ class STLSManager:
                 return "⚠️ 스탑로스 감시가 현재 실행 중이지 않습니다."
             
             self.active = False
+            set_setting("stls_active", False)
             logger.info("스탑로스 감시 중지 요청됨")
             
             if self.loop and self.websocket:

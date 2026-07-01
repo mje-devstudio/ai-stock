@@ -14,7 +14,10 @@ DEFAULT_SETTINGS = {
     "gdcrs_short": 5,
     "gdcrs_long": 20,
     "ddcrs_short": 5,
-    "ddcrs_long": 20
+    "ddcrs_long": 20,
+    "gdcrs_active": False,
+    "ddcrs_active": False,
+    "stls_active": False
 }
 
 
