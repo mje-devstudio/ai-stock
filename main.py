@@ -93,6 +93,14 @@ def main():
                     reply_message(telegram_chat_id, f"🔄 {res}")
             except Exception as e:
                 logging.error(f"트레일링 스탑 감시 자동 시작 실패: {e}")
+                
+        # 보유 종목 모니터링 자동 시작
+        try:
+            from realtime.holding_monitor import HoldingsMonitor
+            HoldingsMonitor().start()
+            logging.info("보유 종목 변동 모니터링 자동 시작")
+        except Exception as e:
+            logging.error(f"보유 종목 변동 모니터링 자동 시작 실패: {e}")
     else:
         logging.error(f"모의투자 모드 로그인 실패: {auth_res.get('error_msg')}")
         if telegram_chat_id:
