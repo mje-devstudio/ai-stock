@@ -10,12 +10,15 @@ def ddcrs_command(args: list, chat_id: str = None) -> str:
       2. 감시 상태 및 보유종목 조회:
          ddcrs list
          ddcrs status
+      3. 실시간 데드크로스 감시 시작/중지: ddcrs start / ddcrs stop
     """
     if not args:
         return (
             "사용법:\n"
             "• 분봉 값 설정: ddcrs intv {단기} {장기} (또는 ddcrs {단기} {장기})\n"
-            "• 감시 상태 조회: ddcrs list (또는 ddcrs status)"
+            "• 감시 상태 조회: ddcrs list (또는 ddcrs status)\n"
+            "• 감시 시작: ddcrs start\n"
+            "• 감시 중단: ddcrs stop"
         )
         
     subcmd = args[0].strip().lower()
@@ -71,12 +74,25 @@ def ddcrs_command(args: list, chat_id: str = None) -> str:
         long_str = args[2].strip()
         return _set_intervals(short_str, long_str)
         
+    elif subcmd == "start":
+        from realtime.ddcrs_runner import DDCRSManager
+        manager = DDCRSManager()
+        res = manager.start(chat_id)
+        return res if res else "✅ 데드크로스 감시가 실행되었습니다."
+
+    elif subcmd == "stop":
+        from realtime.ddcrs_runner import DDCRSManager
+        manager = DDCRSManager()
+        return manager.stop()
+
     elif not subcmd.isdigit():
         return (
             "올바르지 않은 명령 또는 인수 유형입니다.\n"
             "사용법:\n"
             "• 분봉 값 설정: ddcrs intv {단기} {장기} (또는 ddcrs {단기} {장기})\n"
-            "• 감시 상태 조회: ddcrs list"
+            "• 감시 상태 조회: ddcrs list\n"
+            "• 감시 시작: ddcrs start\n"
+            "• 감시 중단: ddcrs stop"
         )
         
     else:

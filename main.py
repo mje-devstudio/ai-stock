@@ -65,6 +65,16 @@ def main():
                     reply_message(telegram_chat_id, f"🔄 {res}")
             except Exception as e:
                 logging.error(f"데드크로스 감시 자동 시작 실패: {e}")
+                
+        if get_setting("jggs_active", False):
+            try:
+                from realtime.jggs_runner import JGGSManager
+                res = JGGSManager().start()
+                logging.info(f"조건검색 감시 자동 시작: {res}")
+                if res:
+                    reply_message(telegram_chat_id, f"🔄 {res}")
+            except Exception as e:
+                logging.error(f"조건검색 감시 자동 시작 실패: {e}")
     else:
         logging.error(f"모의투자 모드 로그인 실패: {auth_res.get('error_msg')}")
         if telegram_chat_id:

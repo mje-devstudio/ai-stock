@@ -1,4 +1,5 @@
 from utils.jggs import add_jggs_command, load_jggs_commands, remove_jggs_command_by_index, clear_jggs_commands
+from utils.market import is_market_open
 
 def jggs_command(args: list, chat_id: str = None) -> str:
     """조건검색식에 명령어를 배정하고 관리하는 명령어입니다.
@@ -9,6 +10,7 @@ def jggs_command(args: list, chat_id: str = None) -> str:
       3. 배정 삭제: jggs remove {일련번호} (예: jggs remove 1)
       4. 배정 전체 비우기: jggs clear
       5. 실시간 조건검색 수신 테스트: jggs test
+      6. 실시간 조건검색 자동 실행 시작/중지: jggs start / jggs stop
     """
     if not args:
         return (
@@ -17,7 +19,9 @@ def jggs_command(args: list, chat_id: str = None) -> str:
             "• 목록 조회: jggs list\n"
             "• 배정 삭제: jggs remove {일련번호} (예: jggs remove 1)\n"
             "• 전체 비우기: jggs clear\n"
-            "• 수신 테스트: jggs test"
+            "• 수신 테스트: jggs test\n"
+            "• 감시 시작: jggs start\n"
+            "• 감시 중단: jggs stop"
         )
 
     sub_cmd = args[0].lower()
@@ -112,6 +116,8 @@ def jggs_command(args: list, chat_id: str = None) -> str:
         
         def make_test_callback(cond_id, command_str):
             def test_callback(tick):
+                if not is_market_open():
+                    return
                 # tick values: {'841': 'seq', '9001': 'code', '843': 'I' or 'D', ...}
                 values = tick.get("values", {})
                 stk_cd = tick.get("item") or values.get("9001")
@@ -132,6 +138,17 @@ def jggs_command(args: list, chat_id: str = None) -> str:
                 
         return f"✅ {len(registered_seqs)}개의 조건식에 대한 실시간 수신 테스트를 시작합니다. 터미널 로그를 확인해주세요."
 
+    elif sub_cmd == "start":
+        from realtime.jggs_runner import JGGSManager
+        manager = JGGSManager()
+        res = manager.start(chat_id)
+        return res if res else "✅ 조건검색 자동매매가 실행되었습니다."
+
+    elif sub_cmd == "stop":
+        from realtime.jggs_runner import JGGSManager
+        manager = JGGSManager()
+        return manager.stop()
+
     else:
         return (
             f"올바르지 않은 하위 명령입니다: {sub_cmd}\n"
@@ -140,5 +157,7 @@ def jggs_command(args: list, chat_id: str = None) -> str:
             "• jggs list\n"
             "• jggs remove {일련번호}\n"
             "• jggs clear\n"
-            "• jggs test"
+            "• jggs test\n"
+            "• jggs start\n"
+            "• jggs stop"
         )

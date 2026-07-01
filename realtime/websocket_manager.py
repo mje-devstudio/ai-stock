@@ -272,6 +272,20 @@ class WebsocketManager:
                                 if data_list:
                                     jmcodes = [d.get("jmcode") for d in data_list]
                                     logger.info(f"조건식 {seq} 실시간 등록 성공. 초기 편입 종목 리스트: {jmcodes}")
+                                    # 초기 편입 종목도 실시간 편입('I')과 동일하게 콜백들에 전달
+                                    for item in data_list:
+                                        jmcode = item.get("jmcode", "")
+                                        if jmcode.startswith("A"):
+                                            jmcode = jmcode[1:]
+                                        mock_tick = {
+                                            "values": {
+                                                "841": seq,
+                                                "9001": jmcode,
+                                                "843": "I"
+                                            },
+                                            "item": jmcode
+                                        }
+                                        self._dispatch_cnsr(mock_tick)
                                 else:
                                     logger.info(f"조건식 {seq} 실시간 등록 성공. 현재 편입된 종목 없음.")
                                 continue

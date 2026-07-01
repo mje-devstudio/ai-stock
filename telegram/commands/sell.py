@@ -6,53 +6,70 @@ def sell_command(args: list, chat_id: str = None) -> str:
     """
     'sell' 명령어를 처리합니다.
     사용법:
-    sell {보유종목} {수량}
-    예: sell 삼성전자 10
-    예: sell 005930 10
+    sell {종목코드|종목명} [수량]
+    예: sell 삼성전자 10 (10주 매도)
+    예: sell 삼성전자 (전량 매도)
+    예: sell 005930 (전량 매도)
     """
-    if len(args) < 2:
-        return "사용법: sell {종목코드|종목명} {수량}\n예: sell 삼성전자 10\n예: sell 005930 10"
+    if len(args) < 1:
+        return "사용법: sell {종목코드|종목명} [수량]\n예: sell 삼성전자 10\n예: sell 005930"
         
     stk_input = clean_stock_code(args[0].strip())
     
-    try:
-        ord_qty = int(args[1].strip())
-        if ord_qty <= 0:
-            return "수량은 1 이상의 정수여야 합니다."
-    except ValueError:
-        return "수량은 정수로 입력해야 합니다."
+    # 보유종목 조회
+    eval_res = get_account_evaluation()
+    if not eval_res["success"]:
+        return f"보유종목 조회를 실패했습니다.\n- 사유: {eval_res['error_msg']}"
         
-    # 종목 식별
+    holdings = eval_res.get("holdings", [])
+    
+    # 보유 종목 중 입력값과 일치하는 항목 검색 (종목코드 또는 종목명 비교)
+    matched_holding = None
+    for h in holdings:
+        h_stk_cd = clean_stock_code(h.get("stk_cd", ""))
+        h_stk_nm = h.get("stk_nm", "")
+        if stk_input == h_stk_cd or stk_input == h_stk_nm:
+            matched_holding = h
+            break
+
     stk_cd = None
     stk_nm = stk_input
-    
-    if len(stk_input) == 6 and stk_input.isdigit():
-        stk_cd = stk_input
-        # 코드로 입력한 경우 이름을 찾기 위해 계좌 조회를 시도
-        eval_res = get_account_evaluation()
-        if eval_res["success"]:
-            for h in eval_res["holdings"]:
-                raw_cd = h.get("stk_cd", "")
-                short_cd = clean_stock_code(raw_cd)
-                if short_cd == stk_cd:
-                    stk_nm = h.get("stk_nm", stk_input)
-                    break
-    else:
-        # 이름으로 입력한 경우 계좌 조회하여 코드로 변환
-        eval_res = get_account_evaluation()
-        if not eval_res["success"]:
-            return f"보유종목 조회를 실패하여 종목명을 코드로 변환할 수 없습니다.\n- 사유: {eval_res['error_msg']}"
+    ord_qty = None
+
+    # 수량 결정
+    if len(args) >= 2:
+        # 수량이 입력된 경우
+        try:
+            ord_qty = int(args[1].strip())
+            if ord_qty <= 0:
+                return "수량은 1 이상의 정수여야 합니다."
+        except ValueError:
+            return "수량은 정수로 입력해야 합니다."
             
-        holdings = eval_res["holdings"]
-        for h in holdings:
-            if h.get("stk_nm") == stk_input:
-                raw_cd = h.get("stk_cd", "")
-                stk_cd = clean_stock_code(raw_cd)
-                stk_nm = h.get("stk_nm")
-                break
-                
-        if not stk_cd:
-            return f"보유종목 중 '{stk_input}'을(를) 찾을 수 없습니다. 정확한 종목명 또는 6자리 종목코드를 입력해주세요."
+        if matched_holding:
+            stk_cd = clean_stock_code(matched_holding.get("stk_cd", ""))
+            stk_nm = matched_holding.get("stk_nm", stk_input)
+        else:
+            # 보유종목에 없더라도 입력한 값이 6자리 종목코드 형식이면 매도 시도
+            if len(stk_input) == 6 and stk_input.isdigit():
+                stk_cd = stk_input
+            else:
+                return f"보유종목 중 '{stk_input}'을(를) 찾을 수 없습니다. 정확한 종목명 또는 6자리 종목코드를 입력해주세요."
+    else:
+        # 수량이 입력되지 않은 경우 (전량 매도)
+        if not matched_holding:
+            return f"❌ 보유종목 중 '{stk_input}'을(를) 찾을 수 없어 전량 매도할 수 없습니다."
+            
+        stk_cd = clean_stock_code(matched_holding.get("stk_cd", ""))
+        stk_nm = matched_holding.get("stk_nm", stk_input)
+        
+        try:
+            ord_qty = int(matched_holding.get("rmnd_qty", 0))
+        except (ValueError, TypeError):
+            ord_qty = 0
+            
+        if ord_qty <= 0:
+            return f"❌ '{stk_nm}'의 보유 수량이 0주이므로 매도할 수 없습니다."
 
     # 매도 실행
     res = sell_stock(stk_cd, ord_qty)
@@ -73,7 +90,9 @@ def sell_command(args: list, chat_id: str = None) -> str:
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"종목명: {stk_nm}\n"
             f"종목코드: {stk_cd}\n"
-            f"주문수량: {ord_qty:,}주\n"
+            f"주문수량: {ord_qty:,}주 (전량 매도)\n" if len(args) < 2 else f"주문수량: {ord_qty:,}주\n"
+        )
+        msg += (
             f"주문단가: 시장가\n"
             f"주문번호: {ord_no}\n"
             f"메시지: {return_msg}\n"

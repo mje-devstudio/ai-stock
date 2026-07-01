@@ -30,6 +30,8 @@ def scheduler_loop():
     last_gdcrs_restart_date = None
     last_ddcrs_restart_date = None
     last_stls_restart_date = None
+    last_jggs_restart_date = None
+    last_jggs_stop_date = None
     
     while True:
         try:
@@ -88,6 +90,40 @@ def scheduler_loop():
                         send_notification(f"❌ 스탑로스 자동 재기동 실패: {stls_err}")
                 else:
                     last_stls_restart_date = today_str
+
+            # 1.3. 평일 장 시작 시간 조건검색 감시 자동 재시작
+            if current_time_str == market_start_time and now.weekday() < 5 and last_jggs_restart_date != today_str:
+                if get_setting("jggs_active", False):
+                    send_notification("⏰ 평일 장 시작 시간이 되어 조건검색 감시를 자동 재기동합니다...")
+                    try:
+                        from realtime.jggs_runner import JGGSManager
+                        manager = JGGSManager()
+                        if manager.active:
+                            manager.stop(keep_active_setting=True)
+                        start_res = manager.start()
+                        send_notification(f"🔄 조건검색 재기동 결과: {start_res if start_res else '성공'}")
+                        last_jggs_restart_date = today_str
+                    except Exception as jggs_err:
+                        send_notification(f"❌ 조건검색 자동 재기동 실패: {jggs_err}")
+                else:
+                    last_jggs_restart_date = today_str
+
+            # 1.4. 평일 장 종료 시간 조건검색 감시 자동 일시정지 (stop)
+            market_end_time = get_setting("market_end_time") or "15:30"
+            if current_time_str == market_end_time and now.weekday() < 5 and last_jggs_stop_date != today_str:
+                if get_setting("jggs_active", False):
+                    try:
+                        from realtime.jggs_runner import JGGSManager
+                        manager = JGGSManager()
+                        if manager.active:
+                            send_notification("⏰ 평일 장 종료 시간이 되어 조건검색 감시를 일시정지합니다...")
+                            stop_res = manager.stop(keep_active_setting=True)
+                            send_notification(f"🔄 조건검색 일시정지 결과: {stop_res}")
+                        last_jggs_stop_date = today_str
+                    except Exception as jggs_stop_err:
+                        send_notification(f"❌ 조건검색 자동 일시정지 실패: {jggs_stop_err}")
+                else:
+                    last_jggs_stop_date = today_str
 
 
 

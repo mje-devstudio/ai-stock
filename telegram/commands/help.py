@@ -17,7 +17,7 @@ def help_command(args: list, chat_id: str = None) -> str:
         "💸 [주식 주문]",
         "• buy {종목코드} {수량} [지정가]: 지정 수량 매수 (지정가 생략 시 시장가)",
         "• buy {종목코드} max {금액}: 설정 금액 내 최대 수량 시장가 매수",
-        "• sell {종목코드} {수량} [지정가]: 지정 수량 매도 (지정가 생략 시 시장가)",
+        "• sell {종목코드} [수량] [지정가]: 지정 수량 매도 (수량 생략 시 보유 주식 전량 시장가 매도)",
         "",
         "⚙️ [설정 관리]",
         "• stts: 현재 설정 현황 조회",
@@ -30,6 +30,7 @@ def help_command(args: list, chat_id: str = None) -> str:
         "• start stls / stop stls: 실시간 스탑로스 감시 시작/중지",
         "• start gdcrs / stop gdcrs: 실시간 골든크로스 자동 매수 감시 시작/중지",
         "• start ddcrs / stop ddcrs: 실시간 데드크로스 자동 매도 감시 시작/중지",
+        "• start jggs / stop jggs: 실시간 조건검색 자동 실행 시작/중지",
         "",
         "🔱 [골든크로스 감시 설정]",
         "• gdcrs intv {단기} {장기}: 분석용 단기/장기 분봉 설정 (1~60 정수, 예: gdcrs intv 5 20)",
@@ -54,6 +55,7 @@ def help_command(args: list, chat_id: str = None) -> str:
         "• jggs list: 조건식 배정 명령어 목록 조회",
         "• jggs remove {일련번호}: 특정 배정 명령어 삭제",
         "• jggs clear: 모든 조건식 배정 명령어 목록 비우기",
+        "• jggs test: 조건식 실시간 수신 테스트",
         "━━━━━━━━━━━━━━━━━━━"
     ]
     return "\n".join(msg_lines)

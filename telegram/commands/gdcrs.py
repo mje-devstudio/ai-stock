@@ -17,6 +17,7 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
          gdcrs remove {번호} (예: gdcrs remove 1)
       5. 감시 대상 목록 비우기:
          gdcrs clear
+      6. 실시간 골든크로스 감시 시작/중지: gdcrs start / gdcrs stop
     """
     if not args:
         return (
@@ -25,7 +26,9 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
             "• 대상 종목 추가: gdcrs add {종목코드} {금액}\n"
             "• 대상 종목 목록: gdcrs list\n"
             "• 대상 종목 삭제: gdcrs remove {번호}\n"
-            "• 대상 종목 목록 비우기: gdcrs clear"
+            "• 대상 종목 목록 비우기: gdcrs clear\n"
+            "• 감시 시작: gdcrs start\n"
+            "• 감시 중단: gdcrs stop"
         )
         
     subcmd = args[0].strip().lower()
@@ -99,6 +102,17 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
         long_str = args[2].strip()
         return _set_intervals(short_str, long_str)
         
+    elif subcmd == "start":
+        from realtime.gdcrs_runner import GDCRSManager
+        manager = GDCRSManager()
+        res = manager.start(chat_id)
+        return res if res else "✅ 골든크로스 감시가 실행되었습니다."
+
+    elif subcmd == "stop":
+        from realtime.gdcrs_runner import GDCRSManager
+        manager = GDCRSManager()
+        return manager.stop()
+
     elif not subcmd.isdigit():
         return (
             "올바르지 않은 명령 또는 인수 유형입니다.\n"
@@ -107,7 +121,9 @@ def gdcrs_command(args: list, chat_id: str = None) -> str:
             "• 대상 종목 추가: gdcrs add {종목코드} {금액}\n"
             "• 대상 종목 목록: gdcrs list\n"
             "• 대상 종목 삭제: gdcrs remove {번호}\n"
-            "• 대상 종목 목록 비우기: gdcrs clear"
+            "• 대상 종목 목록 비우기: gdcrs clear\n"
+            "• 감시 시작: gdcrs start\n"
+            "• 감시 중단: gdcrs stop"
         )
 
         
