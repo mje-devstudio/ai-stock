@@ -39,13 +39,19 @@ class HoldingsMonitor:
             res = self._fetch_holdings()
             if res.get("success"):
                 holdings = res.get("holdings", [])
-                self.last_holdings = {
-                    clean_stock_code(h["stk_cd"]): {
+                self.last_holdings = {}
+                for h in holdings:
+                    stk_cd = h.get("stk_cd")
+                    if not stk_cd:
+                        continue
+                    stk_cd = clean_stock_code(stk_cd)
+                    avg_prc, cur_prc = self._parse_prices(h)
+                    self.last_holdings[stk_cd] = {
                         "stk_nm": h.get("stk_nm", h["stk_cd"]),
-                        "qty": int(h.get("rmnd_qty", 0))
+                        "qty": int(h.get("rmnd_qty", 0)),
+                        "avg_prc": avg_prc,
+                        "cur_prc": cur_prc
                     }
-                    for h in holdings if h.get("stk_cd")
-                }
                 logger.info(f"[HoldingsMonitor] 최초 보유 종목 로드 완료: {self.last_holdings}")
             else:
                 logger.warning(f"[HoldingsMonitor] 최초 보유 종목 조회 실패: {res.get('error_msg')}")
@@ -69,6 +75,26 @@ class HoldingsMonitor:
         else:
             return get_daily_balance_ratio()
 
+    def _parse_prices(self, h) -> tuple:
+        """
+        보유 종목 딕셔너리에서 평균단가와 현재가를 안전하게 파싱하여 반환합니다.
+        """
+        # 평균단가 (avg_prc, buy_uv, pchs_avg_pric)
+        avg_prc_val = h.get("avg_prc") or h.get("buy_uv") or h.get("pchs_avg_pric") or 0.0
+        try:
+            avg_prc = float(str(avg_prc_val).strip().lstrip('+-'))
+        except (ValueError, TypeError):
+            avg_prc = 0.0
+            
+        # 현재가 (cur_prc, now_pric, evlt_prc, cur_price)
+        cur_prc_val = h.get("cur_prc") or h.get("now_pric") or h.get("evlt_prc") or h.get("cur_price") or 0.0
+        try:
+            cur_prc = float(str(cur_prc_val).strip().lstrip('+-'))
+        except (ValueError, TypeError):
+            cur_prc = 0.0
+            
+        return avg_prc, cur_prc
+
     def _monitor_loop(self, chat_id):
         from telegram.bot import reply_message
         from config.config import telegram_chat_id
@@ -86,13 +112,19 @@ class HoldingsMonitor:
                     continue
                     
                 holdings = res.get("holdings", [])
-                current_holdings = {
-                    clean_stock_code(h["stk_cd"]): {
+                current_holdings = {}
+                for h in holdings:
+                    stk_cd = h.get("stk_cd")
+                    if not stk_cd:
+                        continue
+                    stk_cd = clean_stock_code(stk_cd)
+                    avg_prc, cur_prc = self._parse_prices(h)
+                    current_holdings[stk_cd] = {
                         "stk_nm": h.get("stk_nm", h["stk_cd"]),
-                        "qty": int(h.get("rmnd_qty", 0))
+                        "qty": int(h.get("rmnd_qty", 0)),
+                        "avg_prc": avg_prc,
+                        "cur_prc": cur_prc
                     }
-                    for h in holdings if h.get("stk_cd")
-                }
                 
                 with self.lock:
                     all_keys = set(self.last_holdings.keys()) | set(current_holdings.keys())
@@ -108,14 +140,40 @@ class HoldingsMonitor:
                                 or stk_cd
                             )
                             
+                            # 신규 가격정보 추출
+                            avg_prc = current_holdings.get(stk_cd, {}).get("avg_prc", 0.0) or self.last_holdings.get(stk_cd, {}).get("avg_prc", 0.0)
+                            cur_prc = current_holdings.get(stk_cd, {}).get("cur_prc", 0.0) or self.last_holdings.get(stk_cd, {}).get("cur_prc", 0.0)
+                            
                             diff = curr_qty - last_qty
                             if diff > 0:
-                                msg = f"🔔 [주식 매수 완료 알림]\n- 종목: {stk_nm} ({stk_cd})\n- 기존 수량: {last_qty}주 -> 변경 수량: {curr_qty}주 (+{diff}주)"
+                                prc_info = ""
+                                if cur_prc > 0:
+                                    prc_info += f"- 체결 단가(현재가): {int(cur_prc):,}원\n"
+                                if avg_prc > 0:
+                                    prc_info += f"- 보유 평단가: {int(avg_prc):,}원\n"
+                                    
+                                msg = (
+                                    f"🔔 [주식 매수 완료 알림]\n"
+                                    f"- 종목: {stk_nm} ({stk_cd})\n"
+                                    f"- 기존 수량: {last_qty}주 -> 변경 수량: {curr_qty}주 (+{diff}주)\n"
+                                    f"{prc_info.strip()}"
+                                )
                                 logger.info(msg)
                                 if target_chat:
                                     reply_message(target_chat, msg)
                             elif diff < 0:
-                                msg = f"🔔 [주식 매도 완료 알림]\n- 종목: {stk_nm} ({stk_cd})\n- 기존 수량: {last_qty}주 -> 변경 수량: {curr_qty}주 ({diff}주)"
+                                prc_info = ""
+                                if cur_prc > 0:
+                                    prc_info += f"- 체결 단가(현재가): {int(cur_prc):,}원\n"
+                                if avg_prc > 0:
+                                    prc_info += f"- 보유 평단가: {int(avg_prc):,}원\n"
+                                    
+                                msg = (
+                                    f"🔔 [주식 매도 완료 알림]\n"
+                                    f"- 종목: {stk_nm} ({stk_cd})\n"
+                                    f"- 기존 수량: {last_qty}주 -> 변경 수량: {curr_qty}주 ({diff}주)\n"
+                                    f"{prc_info.strip()}"
+                                )
                                 logger.info(msg)
                                 if target_chat:
                                     reply_message(target_chat, msg)
