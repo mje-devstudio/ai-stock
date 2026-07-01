@@ -19,7 +19,9 @@ DEFAULT_SETTINGS = {
     "ddcrs_active": False,
     "stls_active": False,
     "trailing_stop_drop_ratio": 3.0,
-    "trailing_stop_min_profit": 5.0
+    "trailing_stop_min_profit": 5.0,
+    "order_timeout_seconds": 0,
+    "order_timeout_action": "cancel"
 }
 
 

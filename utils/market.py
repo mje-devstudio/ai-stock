@@ -71,3 +71,36 @@ def get_price_down_by_ticks(price: int, ticks: int) -> int:
     return current_price
 
 
+def get_tick_size_for_up(price: int) -> int:
+    """
+    KRX 호가 상향 단위 계산
+    호가를 올릴 때 적용될 틱 사이즈를 반환합니다.
+    """
+    if price < 2000:
+        return 1
+    elif price < 5000:
+        return 5
+    elif price < 20000:
+        return 10
+    elif price < 50000:
+        return 50
+    elif price < 200000:
+        return 100
+    elif price < 500000:
+        return 500
+    else:
+        return 1000
+
+
+def get_price_up_by_ticks(price: int, ticks: int) -> int:
+    """
+    주어진 가격에서 지정된 틱 수만큼 올린 가격을 반환합니다.
+    """
+    current_price = price
+    for _ in range(ticks):
+        tick_size = get_tick_size_for_up(current_price)
+        current_price += tick_size
+    return current_price
+
+
+

@@ -192,6 +192,8 @@ def buy_command(args: list, chat_id: str = None) -> str:
         return_msg = order_body.get("return_msg", "")
         
         if return_code == 0:
+            from realtime.timeout_monitor import start_timeout_monitor
+            start_timeout_monitor(stk_cd, ord_no, final_qty, ord_pric)
             prc_str = f"{ord_pric:,}원 (지정가, {tick}틱 아래)" if tick > 0 else "시장가"
             limit_info = ""
             if ord_qty is not None:
@@ -270,6 +272,8 @@ def buy_command(args: list, chat_id: str = None) -> str:
         return_msg = body.get("return_msg", "")
         
         if return_code == 0:
+            from realtime.timeout_monitor import start_timeout_monitor
+            start_timeout_monitor(stk_cd, ord_no, ord_qty, ord_pric)
             if tick > 0:
                 prc_type = "지정가"
                 prc_str = f"{ord_pric:,}원 ({tick}틱 아래)"

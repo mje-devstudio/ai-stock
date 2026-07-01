@@ -18,6 +18,7 @@ from telegram.commands.conditional_search import conditional_search_command
 from telegram.commands.jggs import jggs_command
 from telegram.commands.trst import trst_command
 from telegram.commands.ccl import ccl_command
+from telegram.commands.time import time_command
 
 # 명령어 등록 매핑
 COMMANDS = {
@@ -45,7 +46,8 @@ COMMANDS = {
     "cond": conditional_search_command,
     "jggs": jggs_command,
     "trst": trst_command,
-    "ccl": ccl_command
+    "ccl": ccl_command,
+    "time": time_command
 }
 
 
