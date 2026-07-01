@@ -545,5 +545,112 @@ def get_conditional_search_list() -> dict:
         return {"success": False, "error_msg": f"웹소켓 조회 오류 또는 예외 발생: {str(e)}"}
 
 
+def get_unfilled_orders() -> dict:
+    """
+    계좌별주문체결내역상세요청 (kt00007) API를 호출하여 미체결 주문 목록을 조회합니다.
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/acnt"
+    
+    headers = {
+        "api-id": "kt00007",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    import datetime
+    today_str = datetime.datetime.now().strftime("%Y%m%d")
+    
+    body = {
+        "ord_dt": today_str,
+        "qry_tp": "3",            # 3: 미체결
+        "stk_bond_tp": "0",       # 0: 전체
+        "sell_tp": "0",          # 0: 전체
+        "stk_cd": "",            # 전체
+        "fr_ord_no": "",
+        "dmst_stex_tp": "%"      # %: 전체
+    }
+    
+    all_orders = []
+    cont_yn = "N"
+    next_key = ""
+    
+    while True:
+        req_headers = headers.copy()
+        if cont_yn == "Y":
+            req_headers["cont-yn"] = "Y"
+            req_headers["next-key"] = next_key
+            
+        try:
+            response = http_post(url, headers=req_headers, json=body, timeout=10)
+            
+            if response.status_code != 200:
+                return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+                
+            res_data = response.json()
+            res_body = res_data.get("body", res_data)
+            
+            return_code = res_body.get("return_code")
+            if return_code is None:
+                return_code = res_body.get("returnCode")
+                
+            if return_code is not None and int(return_code) != 0:
+                return_msg = res_body.get("return_msg") or res_body.get("returnMsg") or "알 수 없는 오류"
+                return {"success": False, "error_msg": f"API 오류: {return_msg}"}
+                
+            orders = res_body.get("acnt_ord_cntr_prps_dtl", [])
+            if orders:
+                for o in orders:
+                    if not o.get("ord_no"):
+                        continue
+                    try:
+                        ord_qty = int(o.get("ord_qty", "0"))
+                        ord_uv = int(o.get("ord_uv", "0"))
+                        cntr_qty = int(o.get("cntr_qty", "0"))
+                        ord_remnq = int(o.get("ord_remnq", "0"))
+                    except ValueError:
+                        ord_qty = o.get("ord_qty")
+                        ord_uv = o.get("ord_uv")
+                        cntr_qty = o.get("cntr_qty")
+                        ord_remnq = o.get("ord_remnq")
+                        
+                    # 필터: 주문 잔량(ord_remnq)이 0 이하인 주문(이미 체결 완료되거나 취소된 건)은 제외합니다.
+                    if isinstance(ord_remnq, int) and ord_remnq <= 0:
+                        continue
+                        
+                    stk_cd = clean_stock_code(o.get("stk_cd", ""))
+                    
+                    all_orders.append({
+                        "ord_no": o.get("ord_no"),
+                        "stk_cd": stk_cd,
+                        "stk_nm": o.get("stk_nm", ""),
+                        "io_tp_nm": o.get("io_tp_nm", ""),
+                        "ord_qty": ord_qty,
+                        "ord_uv": ord_uv,
+                        "cntr_qty": cntr_qty,
+                        "ord_remnq": ord_remnq,
+                        "ord_tm": o.get("ord_tm", ""),
+                        "mdfy_cncl": o.get("mdfy_cncl", "")
+                    })
+            
+            res_headers = response.headers
+            cont_yn = res_headers.get("cont-yn", "N")
+            next_key = res_headers.get("next-key", "")
+            
+            if cont_yn != "Y" or not next_key:
+                break
+                
+        except Exception as e:
+            return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+            
+    return {
+        "success": True,
+        "orders": all_orders
+    }
+
+
+
 
 

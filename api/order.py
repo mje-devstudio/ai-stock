@@ -82,3 +82,40 @@ def sell_stock(stk_cd: str, ord_qty: int) -> dict:
             return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
     except Exception as e:
         return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+
+
+def cancel_order(stk_cd: str, orig_ord_no: str, cncl_qty: int = 0) -> dict:
+    """
+    주식 취소 주문을 요청합니다 (kt10003).
+    cncl_qty가 0(기본값)이면 해당 주문의 잔량 전체를 취소합니다.
+    """
+    stk_cd = clean_stock_code(stk_cd)
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    url = f"{session.host_url}/api/dostk/ordr"
+    
+    headers = {
+        "api-id": "kt10003",
+        "authorization": f"Bearer {session.token}",
+        "Content-Type": "application/json;charset=UTF-8"
+    }
+    
+    data = {
+        "dmst_stex_tp": "KRX",
+        "orig_ord_no": orig_ord_no,
+        "stk_cd": stk_cd,
+        "cncl_qty": str(cncl_qty)
+    }
+    
+    try:
+        response = http_post(url, headers=headers, json=data, timeout=10)
+        
+        if response.status_code == 200:
+            res_data = response.json()
+            return {"success": True, "data": res_data}
+        else:
+            return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
+    except Exception as e:
+        return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
+

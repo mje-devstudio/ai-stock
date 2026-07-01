@@ -1,10 +1,10 @@
-from api.stock import get_account_evaluation, get_daily_realized_profit
+from api.stock import get_account_evaluation, get_daily_realized_profit, get_unfilled_orders
 from api.session import session
 from utils.stock_code import clean_stock_code
 
 def report_command(args: list, chat_id: str = None) -> str:
     """
-    'report' 또는 'r' 명령어를 처리하여 사용자의 자금현황과 보유 종목 목록을 반환합니다.
+    'report' 또는 'r' 명령어를 처리하여 사용자의 자금현황과 보유 종목 목록, 미체결 주문 목록을 반환합니다.
     """
     res = get_account_evaluation()
     if not res["success"]:
@@ -12,6 +12,15 @@ def report_command(args: list, chat_id: str = None) -> str:
         
     account_info = res["account_info"]
     holdings = res["holdings"]
+    
+    # 미체결 주문 조회
+    orders_res = get_unfilled_orders()
+    unfilled_orders = []
+    unfilled_error = None
+    if orders_res["success"]:
+        unfilled_orders = orders_res["orders"]
+    else:
+        unfilled_error = orders_res["error_msg"]
     
     def parse_int(val_str, default=0):
         if not val_str:
@@ -92,7 +101,6 @@ def report_command(args: list, chat_id: str = None) -> str:
     tdy_lspft = f"{tdy_lspft_val:,}원"
     tdy_lspft_rt = f"{tdy_lspft_rt_val:.2f}%"
 
-
     msg_lines = [
         "📋 자금 및 보유종목 현황",
         "━━━━━━━━━━━━━━━━━━━",
@@ -137,6 +145,34 @@ def report_command(args: list, chat_id: str = None) -> str:
                 f"   • 평균단가: {avg_prc} / 현재가: {cur_prc}\n"
                 f"   • 평가금액: {evlt_amt}\n"
                 f"   • 평가손익: {pl_sign}{pl_amt} ({pl_sign}{pl_rt})"
+            )
+            
+    msg_lines.append("")
+    msg_lines.append(f"⏳ [미체결 주문] ({len(unfilled_orders)}개)")
+    if unfilled_error:
+        msg_lines.append(f"⚠️ 미체결 조회 실패: {unfilled_error}")
+    elif not unfilled_orders:
+        msg_lines.append("미체결 주문이 없습니다.")
+    else:
+        for idx, order in enumerate(unfilled_orders, 1):
+            stk_nm = order["stk_nm"]
+            stk_cd = order["stk_cd"]
+            io_tp_nm = order["io_tp_nm"]
+            ord_qty = order["ord_qty"]
+            ord_uv = order["ord_uv"]
+            ord_remnq = order["ord_remnq"]
+            ord_tm = order["ord_tm"]
+            
+            qty_str = f"{ord_qty:,}주"
+            remnq_str = f"{ord_remnq:,}주"
+            prc_str = f"{ord_uv:,}원" if ord_uv > 0 else "시장가"
+            
+            msg_lines.append(
+                f"{idx}. {stk_nm} ({stk_cd}) | 주문번호: #{order['ord_no']}\n"
+                f"   • 구분: {io_tp_nm}\n"
+                f"   • 주문단가: {prc_str}\n"
+                f"   • 주문수량: {qty_str} (미체결 잔량: {remnq_str})\n"
+                f"   • 주문시간: {ord_tm}"
             )
             
     msg_lines.append("━━━━━━━━━━━━━━━━━━━")

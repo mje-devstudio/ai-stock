@@ -46,16 +46,48 @@ def _send_telegram_api(chat_id: str, text: str):
         return
         
     url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-    }
-    try:
-        res = requests.post(url, json=payload, timeout=10)
-        if res.status_code != 200:
-            logging.error(f"메시지 전송 실패 (HTTP {res.status_code}): {res.text}")
-    except Exception as e:
-        logging.error(f"메시지 전송 중 오류 발생: {e}")
+    
+    # 텔레그램 메시지 길이 제한(4096자)을 우회하기 위해 4000자 기준으로 줄 단위 분할하여 전송합니다.
+    MAX_LEN = 4000
+    if len(text) <= MAX_LEN:
+        chunks = [text]
+    else:
+        chunks = []
+        current_chunk = []
+        current_len = 0
+        for line in text.split('\n'):
+            if len(line) + 1 > MAX_LEN:
+                # 단일 줄 자체가 4000자를 넘을 경우 (극히 드묾) 강제 문자 분할
+                if current_chunk:
+                    chunks.append('\n'.join(current_chunk))
+                    current_chunk = []
+                    current_len = 0
+                chunks.append(line)
+                continue
+                
+            if current_len + len(line) + 1 > MAX_LEN:
+                chunks.append('\n'.join(current_chunk))
+                current_chunk = [line]
+                current_len = len(line)
+            else:
+                current_chunk.append(line)
+                current_len += len(line) + 1
+        if current_chunk:
+            chunks.append('\n'.join(current_chunk))
+            
+    for chunk in chunks:
+        payload = {
+            "chat_id": chat_id,
+            "text": chunk,
+        }
+        try:
+            res = requests.post(url, json=payload, timeout=10)
+            if res.status_code != 200:
+                logging.error(f"메시지 전송 실패 (HTTP {res.status_code}): {res.text}")
+            # 메시지 간 순서 보장 및 속도 제한을 방지하기 위해 짧은 지연 추가
+            time.sleep(0.05)
+        except Exception as e:
+            logging.error(f"메시지 전송 중 오류 발생: {e}")
 
 # 워커 스레드 기동
 _sender_thread = threading.Thread(target=_message_sender_worker, daemon=True)
