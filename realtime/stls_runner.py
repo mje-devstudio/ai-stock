@@ -1,10 +1,6 @@
 import time
-import json
 import logging
 import threading
-import asyncio
-import websockets
-import requests
 from api.session import session
 from api.stock import get_daily_balance_ratio
 from api.order import sell_stock
@@ -30,13 +26,7 @@ class STLSManager:
         self.tpr = 0.0
         self.slr = 0.0
         self.lock = threading.Lock()
-        
-        self.loop = None
-        self.ws_thread = None
         self.sync_thread = None
-        self.websocket = None
-        
-        self.subscribed_codes = set()
 
     def start(self, chat_id=None) -> str:
         with self.lock:
@@ -55,15 +45,10 @@ class STLSManager:
             self.active = True
             set_setting("stls_active", True)
             self.tracked_stocks.clear()
-            self.subscribed_codes.clear()
             
             # Start sync thread
             self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
             self.sync_thread.start()
-            
-            # Start websocket thread
-            self.ws_thread = threading.Thread(target=self._ws_event_loop_runner, daemon=True)
-            self.ws_thread.start()
             
             logger.info(f"스탑로스 감시 시작: tpr={self.tpr}%, slr={self.slr}%")
             return f"✅ 실시간 스탑로스 감시를 시작합니다.\n- 익절 기준(tpr): {self.tpr}%\n- 손절 기준(slr): {self.slr}%"
@@ -77,15 +62,19 @@ class STLSManager:
             set_setting("stls_active", False)
             logger.info("스탑로스 감시 중지 요청됨")
             
-            if self.loop and self.websocket:
-                asyncio.run_coroutine_threadsafe(self._close_websocket(), self.loop)
+            from realtime.websocket_manager import WebsocketManager
+            ws_manager = WebsocketManager()
+            for stk_cd in list(self.tracked_stocks.keys()):
+                ws_manager.unregister(stk_cd, self._process_tick)
                 
             self.tracked_stocks.clear()
-            self.subscribed_codes.clear()
             return "🛑 실시간 스탑로스 감시를 중단했습니다."
 
     def _sync_loop(self):
         logger.info("보유종목 동기화 루프 시작")
+        from realtime.websocket_manager import WebsocketManager
+        ws_manager = WebsocketManager()
+        
         while self.active:
             try:
                 # Reload settings dynamically
@@ -112,7 +101,6 @@ class STLSManager:
                             if not stk_cd:
                                 continue
                             stk_cd = clean_stock_code(stk_cd)
-                            
                             current_codes.add(stk_cd)
                             
                             try:
@@ -131,7 +119,7 @@ class STLSManager:
                                     "is_selling": False
                                 }
                                 logger.info(f"새로운 감시 종목 추가: {stk_cd} (평단: {buy_uv}, 수량: {qty})")
-                                self._subscribe_stock(stk_cd)
+                                ws_manager.register(stk_cd, self._process_tick)
                             else:
                                 self.tracked_stocks[stk_cd]["buy_uv"] = buy_uv
                                 self.tracked_stocks[stk_cd]["qty"] = qty
@@ -140,7 +128,7 @@ class STLSManager:
                         for r_code in removed_codes:
                             logger.info(f"감시 대상 제외: {r_code}")
                             del self.tracked_stocks[r_code]
-                            self._unsubscribe_stock(r_code)
+                            ws_manager.unregister(r_code, self._process_tick)
                             
                 else:
                     logger.error(f"보유종목 동기화 실패: {res.get('error_msg')}")
@@ -149,121 +137,7 @@ class STLSManager:
                 
             time.sleep(15)
 
-    def _ws_event_loop_runner(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self._websocket_listener())
-        self.loop.close()
-
-    async def _websocket_listener(self):
-        retry_delay = 5
-        while self.active:
-            if session.mode == "paper":
-                host = "wss://mockapi.kiwoom.com:10000/api/dostk/websocket"
-            else:
-                host = "wss://api.kiwoom.com:10000/api/dostk/websocket"
-                
-            logger.info(f"웹소켓 연결 시도: {host}")
-            
-            with self.lock:
-                self.subscribed_codes.clear()
-                self.websocket = None
-            
-            try:
-                async with websockets.connect(host) as ws:
-                    self.websocket = ws
-                    logger.info("웹소켓 연결 완료. 로그인 패킷 전송 중...")
-                    
-                    login_packet = {
-                        "trnm": "LOGIN",
-                        "token": session.token
-                    }
-                    await ws.send(json.dumps(login_packet))
-                    
-                    login_resp = await ws.recv()
-                    logger.info(f"로그인 응답 수신: {login_resp}")
-                    
-                    # Re-subscribe existing codes on reconnect
-                    with self.lock:
-                        for stk_cd in self.tracked_stocks.keys():
-                            self._subscribe_stock(stk_cd)
-                            
-                    retry_delay = 5
-                    
-                    async for message in ws:
-                        if not self.active:
-                            break
-                        try:
-                            root_data = json.loads(message)
-                            if root_data.get("trnm") == "REAL":
-                                tick_list = root_data.get("data", [])
-                                for tick in tick_list:
-                                    if tick.get("type") == "0B":
-                                        await self._process_tick(tick)
-                        except json.JSONDecodeError:
-                            logger.error(f"웹소켓 메시지 파싱 에러: {message}")
-                        except Exception as e:
-                            logger.error(f"웹소켓 메시지 처리 에러: {e}")
-                            
-            except websockets.exceptions.ConnectionClosed:
-                logger.warning("웹소켓 연결이 끊겼습니다. 재연결을 시도합니다.")
-            except Exception as e:
-                logger.error(f"웹소켓 오류 발생: {e}")
-            finally:
-                with self.lock:
-                    self.subscribed_codes.clear()
-                    self.websocket = None
-                
-            if self.active:
-                logger.info(f"{retry_delay}초 후 웹소켓 재연결 시도...")
-                await asyncio.sleep(retry_delay)
-                retry_delay = min(retry_delay * 2, 60)
-
-    async def _close_websocket(self):
-        if self.websocket:
-            try:
-                await self.websocket.close()
-                logger.info("웹소켓 연결이 정상 종료되었습니다.")
-            except Exception as e:
-                logger.error(f"웹소켓 종료 중 오류: {e}")
-            self.websocket = None
-
-    def _subscribe_stock(self, stk_cd):
-        stk_cd = clean_stock_code(stk_cd)
-        if self.loop and self.websocket and stk_cd not in self.subscribed_codes:
-            self.subscribed_codes.add(stk_cd)
-            reg_packet = {
-                "trnm": "REG",
-                "grp_no": "1",
-                "refresh": "1",
-                "data": [
-                    {
-                        "item": [stk_cd],
-                        "type": ["0B"]
-                    }
-                ]
-            }
-            asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(reg_packet)), self.loop)
-            logger.info(f"웹소켓 실시간 등록(REG) 전송: {stk_cd}")
-
-    def _unsubscribe_stock(self, stk_cd):
-        stk_cd = clean_stock_code(stk_cd)
-        if self.loop and self.websocket and stk_cd in self.subscribed_codes:
-            self.subscribed_codes.discard(stk_cd)
-            remove_packet = {
-                "trnm": "REMOVE",
-                "grp_no": "1",
-                "data": [
-                    {
-                        "item": [stk_cd],
-                        "type": ["0B"]
-                    }
-                ]
-            }
-            asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(remove_packet)), self.loop)
-            logger.info(f"웹소켓 실시간 해제(REMOVE) 전송: {stk_cd}")
-
-    async def _process_tick(self, data):
+    def _process_tick(self, data):
         stk_cd = data.get("symbol") or data.get("stk_cd") or data.get("item")
         if not stk_cd:
             return
@@ -316,8 +190,6 @@ class STLSManager:
                 ).start()
 
     def _execute_sell(self, stk_cd, qty, pl_rt, trigger_type, current_price):
-        # Verify thread session state and token
-        logger.info(f"매도 실행 스레드 세션 검증: logged_in={session.is_logged_in()}, mode={session.mode}, token_prefix={str(session.token)[:10] if session.token else 'None'}")
         logger.info(f"주식 시장가 매도 실행: {stk_cd}, 수량: {qty}")
         res = sell_stock(stk_cd, qty)
         logger.info(f"매도 주문 응답 결과: {res}")

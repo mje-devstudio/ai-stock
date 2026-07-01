@@ -1,10 +1,6 @@
 import time
-import json
 import logging
 import threading
-import asyncio
-import websockets
-import datetime
 from api.session import session
 from api.stock import get_daily_balance_ratio
 from api.order import sell_stock
@@ -26,18 +22,12 @@ class DDCRSManager:
 
     def _init_manager(self):
         self.active = False
-        self.tracked_stocks = {}  # { "stk_cd": { "buy_uv": float, "qty": int, "is_selling": bool } }
+        self.tracked_stocks = {}  # { "stk_cd": { "buy_uv": float, "qty": int, "is_selling": bool, "stk_nm": str } }
         self.candles_history = {}  # { "stk_cd": [ {"time": str, "open": int, "high": int, "low": int, "close": int} ] }
         self.short_period = 5
         self.long_period = 20
         self.lock = threading.RLock()
-        
-        self.loop = None
-        self.ws_thread = None
         self.sync_thread = None
-        self.websocket = None
-        
-        self.subscribed_codes = set()
         self.last_trigger_minute = {}
 
     def start(self, chat_id=None) -> str:
@@ -57,7 +47,6 @@ class DDCRSManager:
             self.active = True
             self.tracked_stocks.clear()
             self.candles_history.clear()
-            self.subscribed_codes.clear()
             
             # Save active state to settings
             set_setting("ddcrs_active", True)
@@ -69,11 +58,6 @@ class DDCRSManager:
             # Start sync thread
             self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
             self.sync_thread.start()
-            
-            # Start websocket thread
-            self.ws_thread = threading.Thread(target=self._ws_event_loop_runner, daemon=True)
-            self.ws_thread.start()
-            
             num_stocks = len(self.tracked_stocks)
             
         logger.info(f"데드크로스 감시 시작: 단기={self.short_period}분선, 장기={self.long_period}분선")
@@ -88,12 +72,13 @@ class DDCRSManager:
             set_setting("ddcrs_active", False)
             logger.info("데드크로스 감시 중지 요청됨")
             
-            if self.loop and self.websocket:
-                asyncio.run_coroutine_threadsafe(self._close_websocket(), self.loop)
+            from realtime.websocket_manager import WebsocketManager
+            ws_manager = WebsocketManager()
+            for stk_cd in list(self.tracked_stocks.keys()):
+                ws_manager.unregister(stk_cd, self._process_tick)
                 
             self.tracked_stocks.clear()
             self.candles_history.clear()
-            self.subscribed_codes.clear()
             return "🛑 실시간 데드크로스 감시를 중단했습니다."
 
     def _init_candles(self, stk_cd):
@@ -143,6 +128,9 @@ class DDCRSManager:
 
     def _sync_holdings(self):
         """계좌 보유 종목을 가져와 tracked_stocks와 동기화합니다."""
+        from realtime.websocket_manager import WebsocketManager
+        ws_manager = WebsocketManager()
+        
         try:
             if session.mode == "paper":
                 from api.stock import get_account_evaluation
@@ -190,7 +178,7 @@ class DDCRSManager:
                     if stk_cd not in self.candles_history:
                         success = self._init_candles(stk_cd)
                         if success:
-                            self._subscribe_stock(stk_cd)
+                            ws_manager.register(stk_cd, self._process_tick)
                         time.sleep(0.5)  # API 요청 속도 제한(429) 방지
                             
                 # Handle removed codes (sold or closed)
@@ -202,7 +190,7 @@ class DDCRSManager:
                             del self.tracked_stocks[r_code]
                         if r_code in self.candles_history:
                             del self.candles_history[r_code]
-                        self._unsubscribe_stock(r_code)
+                        ws_manager.unregister(r_code, self._process_tick)
             else:
                 logger.error(f"데드크로스 보유종목 조회 실패: {res.get('error_msg')}")
         except Exception as e:
@@ -211,146 +199,17 @@ class DDCRSManager:
     def _sync_loop(self):
         logger.info("데드크로스 보유종목 동기화 루프 시작")
         while self.active:
-            try:
-                # Reload periods
-                with self.lock:
-                    self.short_period = int(get_setting("ddcrs_short", 5))
-                    self.long_period = int(get_setting("ddcrs_long", 20))
-                    
-                self._sync_holdings()
-            except Exception as e:
-                logger.error(f"데드크로스 동기화 루프 오류: {e}")
-                
+            self._sync_holdings()
             time.sleep(15)
 
-    def _ws_event_loop_runner(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self._websocket_listener())
-        self.loop.close()
-
-    async def _websocket_listener(self):
-        retry_delay = 5
-        while self.active:
-            if session.mode == "paper":
-                host = "wss://mockapi.kiwoom.com:10000/api/dostk/websocket"
-            else:
-                host = "wss://api.kiwoom.com:10000/api/dostk/websocket"
-                
-            logger.info(f"데드크로스 웹소켓 연결 시도: {host}")
-            
-            with self.lock:
-                self.subscribed_codes.clear()
-                self.websocket = None
-            
-            try:
-                async with websockets.connect(host) as ws:
-                    self.websocket = ws
-                    logger.info("데드크로스 웹소켓 연결 완료. 로그인 패킷 전송 중...")
-                    
-                    login_packet = {
-                        "trnm": "LOGIN",
-                        "token": session.token
-                    }
-                    await ws.send(json.dumps(login_packet))
-                    
-                    login_resp = await ws.recv()
-                    logger.info(f"데드크로스 로그인 응답 수신: {login_resp}")
-                    
-                    with self.lock:
-                        for stk_cd in self.tracked_stocks.keys():
-                            self._subscribe_stock(stk_cd)
-                            
-                    retry_delay = 5
-                    
-                    async for message in ws:
-                        if not self.active:
-                            break
-                        try:
-                            root_data = json.loads(message)
-                            if root_data.get("trnm") == "REAL":
-                                tick_list = root_data.get("data", [])
-                                for tick in tick_list:
-                                    if tick.get("type") == "0B":
-                                        await self._process_tick(tick)
-                        except json.JSONDecodeError:
-                            logger.error(f"데드크로스 웹소켓 메시지 파싱 에러: {message}")
-                        except Exception as e:
-                            logger.error(f"데드크로스 웹소켓 메시지 처리 에러: {e}")
-                            
-            except websockets.exceptions.ConnectionClosed:
-                logger.warning("데드크로스 웹소켓 연결이 끊겼습니다. 재연결을 시도합니다.")
-            except Exception as e:
-                logger.error(f"데드크로스 웹소켓 오류 발생: {e}")
-            finally:
-                with self.lock:
-                    self.subscribed_codes.clear()
-                    self.websocket = None
-                
-            if self.active:
-                logger.info(f"데드크로스 {retry_delay}초 후 웹소켓 재연결 시도...")
-                await asyncio.sleep(retry_delay)
-                retry_delay = min(retry_delay * 2, 60)
-
-    async def _close_websocket(self):
-        if self.websocket:
-            try:
-                await self.websocket.close()
-                logger.info("데드크로스 웹소켓 연결이 정상 종료되었습니다.")
-            except Exception as e:
-                logger.error(f"데드크로스 웹소켓 종료 중 오류: {e}")
-            self.websocket = None
-
-    def _subscribe_stock(self, stk_cd):
-        stk_cd = clean_stock_code(stk_cd)
-        if self.loop and self.websocket and stk_cd not in self.subscribed_codes:
-            self.subscribed_codes.add(stk_cd)
-            reg_packet = {
-                "trnm": "REG",
-                "grp_no": "1",
-                "refresh": "1",
-                "data": [
-                    {
-                        "item": [stk_cd],
-                        "type": ["0B"]
-                    }
-                ]
-            }
-            asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(reg_packet)), self.loop)
-            logger.info(f"데드크로스 웹소켓 실시간 등록(REG) 전송: {stk_cd}")
-
-    def _unsubscribe_stock(self, stk_cd):
-        stk_cd = clean_stock_code(stk_cd)
-        if self.loop and self.websocket and stk_cd in self.subscribed_codes:
-            self.subscribed_codes.discard(stk_cd)
-            remove_packet = {
-                "trnm": "REMOVE",
-                "grp_no": "1",
-                "data": [
-                    {
-                        "item": [stk_cd],
-                        "type": ["0B"]
-                    }
-                ]
-            }
-            asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(remove_packet)), self.loop)
-            logger.info(f"데드크로스 웹소켓 실시간 해제(REMOVE) 전송: {stk_cd}")
-
-    def _calculate_ma(self, candles, period):
-        if len(candles) < period:
-            return None
-        closes = [c["close"] for c in candles[-period:]]
-        return sum(closes) / period
-
-    async def _process_tick(self, data):
+    def _process_tick(self, data):
         stk_cd = data.get("symbol") or data.get("stk_cd") or data.get("item")
         if not stk_cd:
             return
         stk_cd = clean_stock_code(stk_cd)
-        
+            
         raw_price = data.get("values", {}).get("10")
-        raw_time = data.get("values", {}).get("20")  # HHmmss
-        if not raw_price or not raw_time:
+        if not raw_price:
             return
             
         try:
@@ -360,8 +219,10 @@ class DDCRSManager:
             logger.error(f"현재가 형변환 실패: {raw_price}")
             return
             
+        import datetime
+        raw_time = data.get("values", {}).get("12")
         today_str = datetime.datetime.now().strftime("%Y%m%d")
-        if len(raw_time) >= 4:
+        if raw_time and len(raw_time) >= 4:
             minute_key = today_str + raw_time[:4]
         else:
             minute_key = today_str + datetime.datetime.now().strftime("%H%M")
@@ -444,6 +305,13 @@ class DDCRSManager:
                     args=(stk_cd, qty, prev_short_ma, prev_long_ma, curr_short_ma, curr_long_ma),
                     daemon=True
                 ).start()
+
+    def _calculate_ma(self, candles, period):
+        if len(candles) < period:
+            return None
+        recent = candles[-period:]
+        total = sum(c["close"] for c in recent)
+        return total / period
 
     def _execute_sell(self, stk_cd, qty, prev_short, prev_long, curr_short, curr_long):
         with self.lock:
