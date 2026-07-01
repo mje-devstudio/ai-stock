@@ -27,6 +27,8 @@ class WebsocketManager:
         self.lock = threading.RLock()
         self.subscribers = {}  # { stk_cd: set(callbacks) }
         self.registered_codes = set()
+        self.cnsrlst_event = threading.Event()
+        self.cnsrlst_data = None
 
     def start(self):
         with self.lock:
@@ -47,6 +49,32 @@ class WebsocketManager:
             self.subscribers.clear()
             self.registered_codes.clear()
             logger.info("공용 웹소켓 매니저가 중지되었습니다.")
+
+    def get_conditional_search_list(self, timeout=10) -> dict:
+        """
+        웹소켓 연결을 통해 조건검색 목록조회를 요청하고 결과를 동기적으로 대기하여 반환합니다.
+        """
+        with self.lock:
+            if not self.active or not self.websocket:
+                return {"success": False, "error_msg": "웹소켓이 연결되어 있지 않습니다. 자동매매 또는 실시간 감시(스탑로스/크로스)가 켜져 있는지 확인하십시오."}
+            
+            self.cnsrlst_event.clear()
+            self.cnsrlst_data = None
+            
+            req_packet = {
+                "trnm": "CNSRLST"
+            }
+            asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(req_packet)), self.loop)
+            logger.info("웹소켓을 통한 조건검색 목록조회(CNSRLST) 요청 전송 완료")
+            
+        success = self.cnsrlst_event.wait(timeout=timeout)
+        if not success:
+            return {"success": False, "error_msg": "조건식 조회 응답 시간 초과 (Timeout)"}
+            
+        if self.cnsrlst_data is None:
+            return {"success": False, "error_msg": "조건식 조회 데이터가 없습니다."}
+            
+        return {"success": True, "data": self.cnsrlst_data}
 
     def register(self, stk_cd, callback):
         stk_cd = clean_stock_code(stk_cd)
@@ -152,7 +180,14 @@ class WebsocketManager:
                             break
                         try:
                             root_data = json.loads(message)
-                            if root_data.get("trnm") == "REAL":
+                            trnm = root_data.get("trnm")
+                            
+                            if trnm == "CNSRLST":
+                                self.cnsrlst_data = root_data
+                                self.cnsrlst_event.set()
+                                continue
+                                
+                            if trnm == "REAL":
                                 tick_list = root_data.get("data", [])
                                 for tick in tick_list:
                                     if tick.get("type") == "0B":

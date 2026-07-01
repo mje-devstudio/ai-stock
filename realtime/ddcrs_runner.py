@@ -51,17 +51,17 @@ class DDCRSManager:
             # Save active state to settings
             set_setting("ddcrs_active", True)
             
-        # Perform initial sync
-        self._sync_holdings()
+        # Perform initial sync with parameters to trigger start notification
+        target_chat = chat_id or getattr(session, "chat_id", None)
+        self._sync_holdings(is_initial=True, chat_id=target_chat)
         
         with self.lock:
             # Start sync thread
             self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
             self.sync_thread.start()
-            num_stocks = len(self.tracked_stocks)
             
         logger.info(f"데드크로스 감시 시작: 단기={self.short_period}분선, 장기={self.long_period}분선")
-        return f"✅ 실시간 데드크로스 감시를 시작합니다.\n- 단기 이평: {self.short_period}분선\n- 장기 이평: {self.long_period}분선\n- 감시 종목 수: {num_stocks}개"
+        return ""
 
     def stop(self) -> str:
         with self.lock:
@@ -126,7 +126,7 @@ class DDCRSManager:
             logger.info(f"[{stk_cd}] 데드크로스 초기 분봉 데이터 동기화 완료: {len(self.candles_history[stk_cd])}개 캔들 로드됨")
         return True
 
-    def _sync_holdings(self):
+    def _sync_holdings(self, is_initial=False, chat_id=None):
         """계좌 보유 종목을 가져와 tracked_stocks와 동기화합니다."""
         from realtime.websocket_manager import WebsocketManager
         ws_manager = WebsocketManager()
@@ -173,6 +173,15 @@ class DDCRSManager:
                             self.tracked_stocks[stk_cd]["qty"] = qty
                             self.tracked_stocks[stk_cd]["stk_nm"] = h.get("stk_nm", self.tracked_stocks[stk_cd].get("stk_nm", ""))
                             
+                # Send start message before actual socket registers
+                if is_initial and chat_id:
+                    from telegram.bot import reply_message
+                    from config.config import telegram_chat_id
+                    target_chat = chat_id or telegram_chat_id
+                    if target_chat:
+                        msg = f"✅ 실시간 데드크로스 감시를 시작합니다.\n- 단기 이평: {self.short_period}분선\n- 장기 이평: {self.long_period}분선\n- 감시 종목 수: {len(current_codes)}개"
+                        reply_message(target_chat, msg)
+
                 # Load candles and subscribe for new codes
                 for stk_cd in current_codes:
                     if stk_cd not in self.candles_history:

@@ -522,4 +522,28 @@ def get_min_chart(stk_cd: str, tic_scope: str = "1", upd_stkpc_tp: str = "1", ba
         return {"success": False, "error_msg": f"네트워크 오류 또는 예외 발생: {str(e)}"}
 
 
+def get_conditional_search_list() -> dict:
+    """
+    조건검색 목록조회 (ka10171) API를 호출하여 등록된 '내 조건식' 목록을 조회합니다.
+    """
+    if not session.is_logged_in():
+        return {"success": False, "error_msg": "로그인이 필요합니다. 먼저 login [paper|real] 명령어를 실행하세요."}
+    
+    try:
+        from realtime.websocket_manager import WebsocketManager
+        manager = WebsocketManager()
+        
+        # 만약 웹소켓 매니저가 실행 중이 아니라면 시작
+        if not manager.active:
+            manager.start()
+            import time
+            time.sleep(2)
+            
+        res = manager.get_conditional_search_list(timeout=10)
+        return res
+    except Exception as e:
+        return {"success": False, "error_msg": f"웹소켓 조회 오류 또는 예외 발생: {str(e)}"}
+
+
+
 

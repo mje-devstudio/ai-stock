@@ -12,26 +12,14 @@ def send_notification(text: str):
     # 터미널 출력
     logging.info(text)
     
-    # 텔레그램 메시지 전송
-    if not telegram_token:
-        logging.error("telegram_token이 설정되지 않아 알림을 보낼 수 없습니다.")
-        return
-        
     chat_id = getattr(session, "chat_id", None) or telegram_chat_id
     if not chat_id:
         logging.error("대화방 Chat ID(session.chat_id 또는 telegram_chat_id)가 없어 알림을 보낼 수 없습니다.")
         return
         
-    url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-    }
     try:
-        import requests
-        res = requests.post(url, json=payload, timeout=10)
-        if res.status_code != 200:
-            logging.error(f"텔레그램 알림 전송 실패 (HTTP {res.status_code}): {res.text}")
+        from telegram.bot import reply_message
+        reply_message(chat_id, text)
     except Exception as e:
         logging.error(f"텔레그램 알림 전송 중 오류 발생: {e}")
 

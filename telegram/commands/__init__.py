@@ -14,6 +14,7 @@ from telegram.commands.stls import start_command, stop_command
 from telegram.commands.rank import rank_command
 from telegram.commands.gdcrs import gdcrs_command
 from telegram.commands.ddcrs import ddcrs_command
+from telegram.commands.conditional_search import conditional_search_command
 
 # 명령어 등록 매핑
 COMMANDS = {
@@ -37,8 +38,10 @@ COMMANDS = {
     "rank": rank_command,
     "rnk": rank_command,
     "gdcrs": gdcrs_command,
-    "ddcrs": ddcrs_command
+    "ddcrs": ddcrs_command,
+    "cond": conditional_search_command
 }
+
 
 def dispatch_command(message_text: str, chat_id: str = None) -> str:
     """

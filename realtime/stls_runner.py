@@ -46,12 +46,20 @@ class STLSManager:
             set_setting("stls_active", True)
             self.tracked_stocks.clear()
             
+            # Send start notification to queue before starting the sync thread
+            from telegram.bot import reply_message
+            from config.config import telegram_chat_id
+            target_chat = chat_id or getattr(session, "chat_id", None) or telegram_chat_id
+            if target_chat:
+                msg = f"✅ 실시간 스탑로스 감시를 시작합니다.\n- 익절 기준(tpr): {self.tpr}%\n- 손절 기준(slr): {self.slr}%"
+                reply_message(target_chat, msg)
+
             # Start sync thread
             self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
             self.sync_thread.start()
             
             logger.info(f"스탑로스 감시 시작: tpr={self.tpr}%, slr={self.slr}%")
-            return f"✅ 실시간 스탑로스 감시를 시작합니다.\n- 익절 기준(tpr): {self.tpr}%\n- 손절 기준(slr): {self.slr}%"
+            return ""
 
     def stop(self) -> str:
         with self.lock:

@@ -59,6 +59,15 @@ class GDCRSManager:
                     "is_buying": False
                 }
                 
+        # Send start notification to queue before subscribing to tickers
+        from telegram.bot import reply_message
+        from config.config import telegram_chat_id
+        target_chat = chat_id or getattr(session, "chat_id", None) or telegram_chat_id
+        num_stocks = len(self.tracked_stocks)
+        if target_chat:
+            msg = f"✅ 실시간 골든크로스 감시를 시작합니다.\n- 단기 이평: {self.short_period}분선\n- 장기 이평: {self.long_period}분선\n- 감시 종목 수: {num_stocks}개"
+            reply_message(target_chat, msg)
+
         # Call _init_candles outside the lock block to avoid holding lock during network I/O
         from realtime.websocket_manager import WebsocketManager
         ws_manager = WebsocketManager()
@@ -71,10 +80,9 @@ class GDCRSManager:
             # Start sync thread
             self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
             self.sync_thread.start()
-            num_stocks = len(self.tracked_stocks)
             
         logger.info(f"골든크로스 감시 시작: 단기={self.short_period}분선, 장기={self.long_period}분선")
-        return f"✅ 실시간 골든크로스 감시를 시작합니다.\n- 단기 이평: {self.short_period}분선\n- 장기 이평: {self.long_period}분선\n- 감시 종목 수: {num_stocks}개"
+        return ""
 
     def stop(self) -> str:
         with self.lock:

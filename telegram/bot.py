@@ -1,6 +1,8 @@
 import time
 import requests
 import logging
+import queue
+import threading
 from config.config import telegram_token, telegram_chat_id
 from telegram.commands import dispatch_command
 
@@ -14,8 +16,31 @@ logging.basicConfig(
     ]
 )
 
-def reply_message(chat_id: str, text: str):
-    """지정된 chat_id로 메시지를 전송합니다."""
+# 전역 메시지 큐 생성
+_message_queue = queue.Queue()
+
+def _message_sender_worker():
+    """백그라운드에서 큐를 감시하며 메시지를 순차적으로 전송합니다."""
+    logging.info("텔레그램 메시지 전송 백그라운드 스레드가 시작되었습니다.")
+    while True:
+        try:
+            # 큐에서 대기 (블로킹)
+            chat_id, text = _message_queue.get()
+            
+            # 실제 텔레그램 API 전송 수행
+            _send_telegram_api(chat_id, text)
+            
+            # 전송 완료 처리
+            _message_queue.task_done()
+            
+            # API 제한을 피하기 위해 짧은 지연시간(100ms) 추가
+            time.sleep(0.1)
+        except Exception as e:
+            logging.error(f"메시지 전송 워커 스레드 오류 발생: {e}")
+            time.sleep(1)
+
+def _send_telegram_api(chat_id: str, text: str):
+    """실제로 텔레그램 HTTP POST API를 호출합니다."""
     if not telegram_token:
         logging.error("telegram_token이 설정되지 않았습니다.")
         return
@@ -31,6 +56,16 @@ def reply_message(chat_id: str, text: str):
             logging.error(f"메시지 전송 실패 (HTTP {res.status_code}): {res.text}")
     except Exception as e:
         logging.error(f"메시지 전송 중 오류 발생: {e}")
+
+# 워커 스레드 기동
+_sender_thread = threading.Thread(target=_message_sender_worker, daemon=True)
+_sender_thread.start()
+
+def reply_message(chat_id: str, text: str):
+    """메시지 큐에 전송할 메시지를 집어넣고 즉시 리턴합니다 (Non-blocking)."""
+    if not chat_id or not text:
+        return
+    _message_queue.put((chat_id, text))
 
 def start_polling():
     """텔레그램 메시지 수신 폴링 루프를 시작합니다."""

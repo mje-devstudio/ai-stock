@@ -41,7 +41,8 @@ def main():
                 from realtime.stls_runner import STLSManager
                 res = STLSManager().start()
                 logging.info(f"스탑로스 감시 자동 시작: {res}")
-                reply_message(telegram_chat_id, f"🔄 {res}")
+                if res:
+                    reply_message(telegram_chat_id, f"🔄 {res}")
             except Exception as e:
                 logging.error(f"스탑로스 감시 자동 시작 실패: {e}")
                 
@@ -50,7 +51,8 @@ def main():
                 from realtime.gdcrs_runner import GDCRSManager
                 res = GDCRSManager().start()
                 logging.info(f"골든크로스 감시 자동 시작: {res}")
-                reply_message(telegram_chat_id, f"🔄 {res}")
+                if res:
+                    reply_message(telegram_chat_id, f"🔄 {res}")
             except Exception as e:
                 logging.error(f"골든크로스 감시 자동 시작 실패: {e}")
                 
@@ -59,7 +61,8 @@ def main():
                 from realtime.ddcrs_runner import DDCRSManager
                 res = DDCRSManager().start()
                 logging.info(f"데드크로스 감시 자동 시작: {res}")
-                reply_message(telegram_chat_id, f"🔄 {res}")
+                if res:
+                    reply_message(telegram_chat_id, f"🔄 {res}")
             except Exception as e:
                 logging.error(f"데드크로스 감시 자동 시작 실패: {e}")
     else:
