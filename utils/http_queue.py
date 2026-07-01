@@ -30,14 +30,15 @@ class _HttpRateLimitQueue:
       Event를 통해 대기 중인 호출자에게 전달합니다.
     """
 
-    MAX_PER_SECOND = 4
-    MIN_INTERVAL = 1.0 / MAX_PER_SECOND  # 0.25초
+    MAX_PER_SECOND = 4      # 1초 슬라이딩 윈도우 내 최대 허용 요청 수
+    WINDOW = 1.0             # 슬라이딩 윈도우 크기 (초)
 
     def __init__(self):
         self._queue: deque = deque()
         self._lock = threading.Lock()
         self._queue_not_empty = threading.Condition(self._lock)
-        self._last_send_time = 0.0
+        # 슬라이딩 윈도우: 최근 전송 시각들을 기록 (워커 스레드 전용, 별도 lock 불필요)
+        self._send_times: deque = deque()
 
         # 워커 스레드 시작
         self._worker = threading.Thread(target=self._run, daemon=True, name="HttpQueueWorker")
@@ -137,12 +138,30 @@ class _HttpRateLimitQueue:
             self._execute(entry)
 
     def _throttle(self):
-        """전송 간격이 MIN_INTERVAL 이상이 되도록 대기합니다."""
-        now = time.monotonic()
-        elapsed = now - self._last_send_time
-        if elapsed < self.MIN_INTERVAL:
-            time.sleep(self.MIN_INTERVAL - elapsed)
-        self._last_send_time = time.monotonic()
+        """
+        슬라이딩 윈도우 방식으로 속도 제한을 적용합니다.
+
+        지난 WINDOW(1초) 안에 전송된 요청 수가 MAX_PER_SECOND(4)에 도달하면,
+        가장 오래된 전송 시각이 윈도우 밖으로 밀려날 때까지 대기합니다.
+        이 방식은 어떤 1초 구간을 잘라도 최대 4건을 초과하지 않음을 보장합니다.
+        """
+        while True:
+            now = time.monotonic()
+            # 윈도우 밖으로 나간 타임스탬프 제거
+            while self._send_times and now - self._send_times[0] >= self.WINDOW:
+                self._send_times.popleft()
+
+            if len(self._send_times) < self.MAX_PER_SECOND:
+                # 윈도우 내 여유 있음 → 즉시 전송
+                break
+
+            # 윈도우 내 요청이 꽉 참 → 가장 오래된 요청이 윈도우 밖으로 나갈 때까지 대기
+            wait_until = self._send_times[0] + self.WINDOW
+            sleep_secs = wait_until - now
+            if sleep_secs > 0:
+                time.sleep(sleep_secs)
+
+        self._send_times.append(time.monotonic())
 
     def _execute(self, entry: dict):
         """실제 HTTP 요청을 실행하고 결과를 대기 중인 호출자에게 전달합니다."""
