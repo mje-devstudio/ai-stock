@@ -1,4 +1,4 @@
-import requests
+from utils.http_queue import http_post
 from api.session import session
 from config.config import account_no, account_pwd
 from utils.stock_code import clean_stock_code
@@ -34,7 +34,7 @@ def buy_stock(stk_cd: str, ord_qty: int, ord_pric: int = 0) -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=10)
+        response = http_post(url, headers=headers, json=data, timeout=10)
         
         if response.status_code == 200:
             res_data = response.json()
@@ -73,7 +73,7 @@ def sell_stock(stk_cd: str, ord_qty: int) -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=10)
+        response = http_post(url, headers=headers, json=data, timeout=10)
         
         if response.status_code == 200:
             res_data = response.json()

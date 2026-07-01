@@ -1,4 +1,4 @@
-import requests
+from utils.http_queue import http_post
 from api.session import session
 from utils.stock_code import clean_stock_code
 
@@ -23,7 +23,7 @@ def get_stock_info(stk_cd: str) -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=10)
+        response = http_post(url, headers=headers, json=data, timeout=10)
         
         if response.status_code == 200:
             res_data = response.json()
@@ -54,7 +54,7 @@ def get_stock_basic_info(stk_cd: str) -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=10)
+        response = http_post(url, headers=headers, json=data, timeout=10)
         
         if response.status_code == 200:
             res_data = response.json()
@@ -110,7 +110,7 @@ def get_account_evaluation() -> dict:
             req_headers["next-key"] = next_key
             
         try:
-            response = requests.post(url, headers=req_headers, json=body, timeout=10)
+            response = http_post(url, headers=req_headers, json=body, timeout=10)
             
             if response.status_code != 200:
                 return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -196,7 +196,7 @@ def get_daily_balance_ratio() -> dict:
             req_headers["next-key"] = next_key
             
         try:
-            response = requests.post(url, headers=req_headers, json=body, timeout=10)
+            response = http_post(url, headers=req_headers, json=body, timeout=10)
             
             if response.status_code != 200:
                 return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -255,7 +255,7 @@ def get_daily_realized_profit() -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=10)
+        response = http_post(url, headers=headers, json=body, timeout=10)
         
         if response.status_code != 200:
             return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -301,7 +301,7 @@ def get_trade_value_rank() -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=10)
+        response = http_post(url, headers=headers, json=body, timeout=10)
         
         if response.status_code != 200:
             return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -353,7 +353,7 @@ def get_fluctuation_rate_rank() -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=10)
+        response = http_post(url, headers=headers, json=body, timeout=10)
         
         if response.status_code != 200:
             return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -405,7 +405,7 @@ def get_trade_volume_rank() -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=10)
+        response = http_post(url, headers=headers, json=body, timeout=10)
         
         if response.status_code != 200:
             return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -450,7 +450,7 @@ def get_popular_search_rank(qry_tp: str = "1") -> dict:
     }
     
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=10)
+        response = http_post(url, headers=headers, json=body, timeout=10)
         
         if response.status_code != 200:
             return {"success": False, "error_msg": f"API 요청 실패 (HTTP {response.status_code}): {response.text}"}
@@ -501,7 +501,7 @@ def get_min_chart(stk_cd: str, tic_scope: str = "1", upd_stkpc_tp: str = "1", ba
         body["base_dt"] = ""
         
     try:
-        response = requests.post(url, headers=headers, json=body, timeout=10)
+        response = http_post(url, headers=headers, json=body, timeout=10)
         
         if response.status_code == 200:
             res_data = response.json()
