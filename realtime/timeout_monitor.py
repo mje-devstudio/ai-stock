@@ -86,6 +86,7 @@ def monitor_order_timeout(stk_cd, ord_no, qty, ord_pric, timeout, action):
                     
         # 3) 1틱 올린 지정가 계산
         next_pric = get_price_up_by_ticks(ord_pric, 1)
+        tick_diff = next_pric - ord_pric
         
         # 4) 시장가 주문 전환 조건 체크 (다음 호가가 현재가 이상이거나 현재가를 알 수 없는 경우)
         if cur_prc > 0 and next_pric >= cur_prc:
@@ -119,7 +120,7 @@ def monitor_order_timeout(stk_cd, ord_no, qty, ord_pric, timeout, action):
                     f"🏢 종목: {target_order['stk_nm']} ({stk_cd})\n"
                     f"기존 주문번호: #{ord_no} ({ord_pric:,}원)\n"
                     f"신규 주문번호: #{new_ord_no} ({next_pric:,}원)\n"
-                    f"사유: {timeout}초간 미체결로 1틱 상향 재주문 실행\n"
+                    f"사유: {timeout}초간 미체결로 1틱 상향(+{tick_diff:,}원) 재주문 실행\n"
                     f"━━━━━━━━━━━━━━━━━━━"
                 )
                 reply_message(telegram_chat_id, msg)
