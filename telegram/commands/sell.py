@@ -14,6 +14,57 @@ def sell_command(args: list, chat_id: str = None) -> str:
     if len(args) < 1:
         return "사용법: sell {종목코드|종목명} [수량]\n예: sell 삼성전자 10\n예: sell 005930"
         
+    if args[0].strip().lower() == "all":
+        from api.session import session
+        from api.stock import get_daily_balance_ratio
+        from utils.blacklist import BlacklistManager
+        
+        eval_res = get_account_evaluation() if getattr(session, 'mode', 'real') == 'paper' else get_daily_balance_ratio()
+        if not eval_res["success"]:
+            return f"보유종목 조회를 실패했습니다.\n- 사유: {eval_res['error_msg']}"
+            
+        holdings = eval_res.get("holdings", [])
+        active_holdings = [h for h in holdings if int(h.get("rmnd_qty", 0)) > 0]
+        if not active_holdings:
+            return "📁 현재 잔고에 보유 중인 종목이 없어 매도할 수 없습니다."
+            
+        success_list = []
+        fail_list = []
+        
+        for h in active_holdings:
+            stk_cd = clean_stock_code(h.get("stk_cd", ""))
+            stk_nm = h.get("stk_nm", stk_cd)
+            
+            # 블랙리스트 검증
+            if BlacklistManager().is_blacklisted(stk_cd):
+                fail_list.append(f"- {stk_nm} ({stk_cd}): 매도 차단 (블랙리스트 종목)")
+                continue
+                
+            qty = int(h.get("rmnd_qty", 0))
+            
+            # 매도 실행
+            res = sell_stock(stk_cd, qty)
+            if res["success"]:
+                body = res["data"].get("body", res["data"])
+                return_code = body.get("return_code")
+                return_msg = body.get("return_msg", "")
+                if return_code == 0:
+                    success_list.append(f"- {stk_nm} ({stk_cd}): {qty:,}주")
+                else:
+                    fail_list.append(f"- {stk_nm} ({stk_cd}): {return_msg} (코드: {return_code})")
+            else:
+                fail_list.append(f"- {stk_nm} ({stk_cd}): {res.get('error_msg')}")
+                
+        msg_lines = ["🔔 [보유 종목 전량 매도 결과]"]
+        if success_list:
+            msg_lines.append("\n✅ 매도 성공 종목:")
+            msg_lines.extend(success_list)
+        if fail_list:
+            msg_lines.append("\n❌ 매도 실패/차단 종목:")
+            msg_lines.extend(fail_list)
+            
+        return "\n".join(msg_lines)
+
     stk_input = clean_stock_code(args[0].strip())
     
     # 블랙리스트 사전 검사 (6자리 코드인 경우)
