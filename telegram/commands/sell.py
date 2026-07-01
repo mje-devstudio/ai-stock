@@ -16,6 +16,12 @@ def sell_command(args: list, chat_id: str = None) -> str:
         
     stk_input = clean_stock_code(args[0].strip())
     
+    # 블랙리스트 사전 검사 (6자리 코드인 경우)
+    if len(stk_input) == 6 and stk_input.isdigit():
+        from utils.blacklist import BlacklistManager
+        if BlacklistManager().is_blacklisted(stk_input):
+            return f"❌ 블랙리스트 제한: 이 종목({stk_input})은 블랙리스트에 등록되어 있어 매도할 수 없습니다."
+    
     # 보유종목 조회
     eval_res = get_account_evaluation()
     if not eval_res["success"]:
@@ -70,6 +76,11 @@ def sell_command(args: list, chat_id: str = None) -> str:
             
         if ord_qty <= 0:
             return f"❌ '{stk_nm}'의 보유 수량이 0주이므로 매도할 수 없습니다."
+
+    # 블랙리스트 검사
+    from utils.blacklist import BlacklistManager
+    if BlacklistManager().is_blacklisted(stk_cd):
+        return f"❌ 블랙리스트 제한: 이 종목({stk_cd})은 블랙리스트에 등록되어 있어 매도할 수 없습니다."
 
     # 매도 실행
     res = sell_stock(stk_cd, ord_qty)

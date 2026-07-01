@@ -53,6 +53,11 @@ def buy_command(args: list, chat_id: str = None) -> str:
     if len(stk_cd) != 6 or not stk_cd.isdigit():
         return "종목코드는 6자리 숫자여야 합니다. (예: 005930)"
 
+    # 블랙리스트 검사
+    from utils.blacklist import BlacklistManager
+    if BlacklistManager().is_blacklisted(stk_cd):
+        return f"❌ 블랙리스트 제한: 이 종목({stk_cd})은 블랙리스트에 등록되어 있어 매수할 수 없습니다."
+
     # 쿨다운 검사
     from utils.cooldown import CooldownManager
     is_cooldown, remaining = CooldownManager().is_in_cooldown(stk_cd)
