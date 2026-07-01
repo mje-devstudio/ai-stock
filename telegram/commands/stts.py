@@ -35,7 +35,8 @@ def stts_command(args: list, chat_id: str = None) -> str:
         "trailing_stop_drop_ratio": "트레일링 스탑 고점 대비 하락율 (%)",
         "trailing_stop_min_profit": "트레일링 스탑 최소 발동 수익률 (%)",
         "order_timeout_seconds": "매수 주문 미체결 감시 시간 (초)",
-        "order_timeout_action": "매수 주문 미체결 액션"
+        "order_timeout_action": "매수 주문 미체결 액션",
+        "cooldown_hours": "매도 후 재매수 제한 시간 (시간)"
     }
     
     msg_lines = [

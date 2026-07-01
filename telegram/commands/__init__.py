@@ -19,6 +19,7 @@ from telegram.commands.jggs import jggs_command
 from telegram.commands.trst import trst_command
 from telegram.commands.ccl import ccl_command
 from telegram.commands.time import time_command
+from telegram.commands.cooldown import cooldown_command
 
 # 명령어 등록 매핑
 COMMANDS = {
@@ -47,7 +48,8 @@ COMMANDS = {
     "jggs": jggs_command,
     "trst": trst_command,
     "ccl": ccl_command,
-    "time": time_command
+    "time": time_command,
+    "cooldown": cooldown_command
 }
 
 

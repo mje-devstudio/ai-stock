@@ -30,6 +30,7 @@ def help_command(args: list, chat_id: str = None) -> str:
         "• slr {손절기준}: 스탑로스 손절 퍼센티지 기준 설정 (음수 실수로 저장, 예: slr 3 또는 slr 3.5)",
         "• trst {하락율} {최소수익률}: 트레일링 스탑 파라미터 설정 (예: trst 3.5 5)",
         "• time {s} cancel/market: 매수 후 {s}초 동안 미체결 시 처리 설정 (0 입력 시 비활성화)",
+        "• cooldown {시간}: 매도 후 지정된 {시간} 동안 재매수 금지 (예: cooldown 24, 0 입력 시 비활성화)",
         "",
         "📈 [실시간 감시 기동/중지]",
         "• start stls / stop stls: 실시간 스탑로스 감시 시작/중지",

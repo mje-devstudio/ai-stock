@@ -177,6 +177,13 @@ class HoldingsMonitor:
                                 logger.info(msg)
                                 if target_chat:
                                     reply_message(target_chat, msg)
+                                
+                                # 매도 기록을 쿨다운 매니저에 저장
+                                try:
+                                    from utils.cooldown import CooldownManager
+                                    CooldownManager().record_sell(stk_cd)
+                                except Exception as e:
+                                    logger.error(f"[HoldingsMonitor] 쿨다운 기록 오류: {e}")
                                     
                     self.last_holdings = current_holdings
                     

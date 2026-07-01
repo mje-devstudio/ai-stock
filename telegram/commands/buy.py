@@ -53,6 +53,18 @@ def buy_command(args: list, chat_id: str = None) -> str:
     if len(stk_cd) != 6 or not stk_cd.isdigit():
         return "종목코드는 6자리 숫자여야 합니다. (예: 005930)"
 
+    # 쿨다운 검사
+    from utils.cooldown import CooldownManager
+    is_cooldown, remaining = CooldownManager().is_in_cooldown(stk_cd)
+    if is_cooldown:
+        if remaining >= 3600:
+            time_str = f"{remaining / 3600.0:.1f}시간"
+        elif remaining >= 60:
+            time_str = f"{remaining / 60.0:.1f}분"
+        else:
+            time_str = f"{remaining:.0f}초"
+        return f"❌ 매수 제한: 해당 종목({stk_cd})은 최근 매도되어 쿨다운 감시 상태입니다. (남은 시간: {time_str})"
+
     # 2. 인수 개수와 형식에 따른 케이스 분석
     is_max_mode = False
     max_amount = 0

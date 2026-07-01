@@ -21,7 +21,8 @@ DEFAULT_SETTINGS = {
     "trailing_stop_drop_ratio": 3.0,
     "trailing_stop_min_profit": 5.0,
     "order_timeout_seconds": 0,
-    "order_timeout_action": "cancel"
+    "order_timeout_action": "cancel",
+    "cooldown_hours": 0.0
 }
 
 
