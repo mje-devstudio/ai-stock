@@ -31,14 +31,16 @@ class _HttpRateLimitQueue:
     - 워커 스레드가 큐에서 요청을 꺼내 속도 제한을 지키며 실행합니다.
     """
 
-    # 전역 한도: 어떤 1초 구간이든 최대 4건
-    GLOBAL_MAX = 4
+    # 전역 기본 한도 (로그인 후 set_global_max()로 모드별 조정)
+    # 모의투자: 초당 5건 → 안전값 4
+    # 실전투자: 초당 20건 → 안전값 16
+    _DEFAULT_GLOBAL_MAX = 4
     WINDOW = 1.0  # 슬라이딩 윈도우 크기 (초)
 
     # API-ID별 한도 (1초 슬라이딩 윈도우 내 최대 호출 수)
     # 명시되지 않은 API-ID는 전역 한도(GLOBAL_MAX)만 적용됨
     PER_API_LIMITS = {
-        "ka10007": 1,   # 시세표성정보요청       — 429 빈번, 1/초로 제한
+        "ka10007": 1,   # 시세표성정보요청       — per-TR 제한 확인, 1/초로 제한
         "ka10080": 1,   # 주식분봉차트조회요청   — 데이터량 많음
         "ka10001": 2,   # 주식기본정보요청
         "kt00004": 1,   # 계좌평가현황요청
@@ -46,6 +48,7 @@ class _HttpRateLimitQueue:
     }
 
     def __init__(self):
+        self.GLOBAL_MAX = self._DEFAULT_GLOBAL_MAX  # 로그인 후 조정 가능
         self._queue: deque = deque()
         self._lock = threading.Lock()
         self._queue_not_empty = threading.Condition(self._lock)
@@ -258,3 +261,20 @@ def http_post(
     per-TR 속도 제한을 전역 한도와 함께 적용합니다.
     """
     return _get_queue().post(url, headers=headers, json=json, timeout=timeout, **kwargs)
+
+
+def set_global_max(n: int):
+    """
+    전역 초당 최대 요청 수를 변경합니다. 로그인 후 세션 모드에 맞게 호출하십시오.
+
+    권장값:
+        모의투자 (paper): 4   (서버 한도 5/초의 안전값)
+        실전투자 (real):  16  (서버 한도 20/초의 안전값)
+
+    사용 예:
+        from utils.http_queue import set_global_max
+        set_global_max(16)  # 실전투자 로그인 후
+    """
+    q = _get_queue()
+    q.GLOBAL_MAX = n
+    logging.info(f"[HttpQueue] 전역 초당 최대 요청 수를 {n}건으로 변경했습니다.")

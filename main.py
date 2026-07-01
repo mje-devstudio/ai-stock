@@ -30,6 +30,14 @@ def main():
             chat_id=telegram_chat_id
         )
         logging.info("모의투자 모드 로그인 성공!")
+        
+        # 세션 모드에 따라 HTTP rate limit 조정
+        # 모의투자: 초당 5건 한도 → 안전값 4
+        # 실전투자: 초당 20건 한도 → 안전값 16
+        from utils.http_queue import set_global_max
+        mode_max = 4 if session.mode == "paper" else 16
+        set_global_max(mode_max)
+        logging.info(f"HTTP rate limit 설정: {mode_max}건/초 (모드: {session.mode})")
         if telegram_chat_id:
             reply_message(telegram_chat_id, "모의투자 자동 로그인에 성공했습니다.")
             

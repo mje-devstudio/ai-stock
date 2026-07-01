@@ -69,6 +69,11 @@ def login_command(args: list, chat_id: str = None) -> str:
         # 전역 세션 업데이트 (chat_id 포함)
         session.update(token=token, mode=mode, host_url=host_url, chat_id=chat_id)
         
+        # 세션 모드에 따라 HTTP rate limit 조정
+        from utils.http_queue import set_global_max
+        mode_max = 4 if mode == "paper" else 16
+        set_global_max(mode_max)
+        
         # 텔레그램 및 터미널에 알림 전송
         send_notification(f"[{mode_kr}] 로그인 성공! 토큰이 발급되었습니다.")
         
@@ -79,7 +84,8 @@ def login_command(args: list, chat_id: str = None) -> str:
             f"- 모드: {mode.upper()}\n"
             f"- 호스트: {host_url}\n"
             f"- 토큰: {masked_token}\n"
-            f"- 알림 대상 Chat ID: {chat_id or '미지정'}"
+            f"- 알림 대상 Chat ID: {chat_id or '미지정'}\n"
+            f"- HTTP 요청 한도: {mode_max}건/초"
         )
     else:
         error_msg = res["error_msg"]
