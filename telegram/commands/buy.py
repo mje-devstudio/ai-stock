@@ -58,8 +58,14 @@ def buy_command(args: list, chat_id: str = None, is_auto: bool = False) -> str:
     if BlacklistManager().is_blacklisted(stk_cd):
         return f"❌ 블랙리스트 제한: 이 종목({stk_cd})은 블랙리스트에 등록되어 있어 매수할 수 없습니다."
 
-    # 자동매매 시 중복 매수 금지 검사
-    if is_auto:
+    # 최대 보유 종목 수 제한 설정 로드
+    from utils.settings import get_setting
+    try:
+        max_hold = int(get_setting("max_holdings", 0))
+    except (ValueError, TypeError):
+        max_hold = 0
+
+    if is_auto or max_hold > 0:
         from api.stock import get_account_evaluation, get_daily_balance_ratio
         from api.session import session
         if getattr(session, 'mode', 'real') == 'paper':
@@ -69,11 +75,21 @@ def buy_command(args: list, chat_id: str = None, is_auto: bool = False) -> str:
             
         if eval_res["success"]:
             holdings = eval_res.get("holdings", [])
-            for h in holdings:
-                h_stk_cd = clean_stock_code(h.get("stk_cd", ""))
-                h_qty = int(h.get("rmnd_qty", 0))
-                if h_stk_cd == stk_cd and h_qty > 0:
-                    return f"❌ 자동매매 매수 차단: 해당 종목({stk_cd})은 이미 보유 중인 종목입니다. (중복 매수 금지)"
+            
+            # 1. 자동매매 시 중복 매수 금지 검사
+            if is_auto:
+                for h in holdings:
+                    h_stk_cd = clean_stock_code(h.get("stk_cd", ""))
+                    h_qty = int(h.get("rmnd_qty", 0))
+                    if h_stk_cd == stk_cd and h_qty > 0:
+                        return f"❌ 자동매매 매수 차단: 해당 종목({stk_cd})은 이미 보유 중인 종목입니다. (중복 매수 금지)"
+                        
+            # 2. 최대 보유 종목 수 제한 검사
+            if max_hold > 0:
+                held_codes = {clean_stock_code(h.get("stk_cd", "")) for h in holdings if int(h.get("rmnd_qty", 0)) > 0}
+                if stk_cd not in held_codes:
+                    if len(held_codes) >= max_hold:
+                        return f"❌ 매수 제한: 최대 보유 종목 수({max_hold}개) 제한에 도달했습니다. 현재 보유 종목 수: {len(held_codes)}개"
 
     # 쿨다운 검사
     from utils.cooldown import CooldownManager

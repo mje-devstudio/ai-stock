@@ -34,6 +34,7 @@ def help_command(args: list, chat_id: str = None) -> str:
         "• blacklist add {코드}: 특정 종목 매매 차단 등록 (예: blacklist add 005930)",
         "• blacklist list: 매매 차단 블랙리스트 목록 확인",
         "• blacklist remove {번호}: 블랙리스트 등록 해제 (일련번호 기준)",
+        "• mxhold {개수}: 최대 보유할 수 있는 종목 수 제한 (0 입력 시 제한 없음)",
         "",
         "📈 [실시간 감시 기동/중지]",
         "• start stls / stop stls: 실시간 스탑로스 감시 시작/중지",

@@ -21,6 +21,7 @@ from telegram.commands.ccl import ccl_command
 from telegram.commands.time import time_command
 from telegram.commands.cooldown import cooldown_command
 from telegram.commands.blacklist import blacklist_command
+from telegram.commands.mxhold import mxhold_command
 
 # 명령어 등록 매핑
 COMMANDS = {
@@ -51,7 +52,8 @@ COMMANDS = {
     "ccl": ccl_command,
     "time": time_command,
     "cooldown": cooldown_command,
-    "blacklist": blacklist_command
+    "blacklist": blacklist_command,
+    "mxhold": mxhold_command
 }
 
 
