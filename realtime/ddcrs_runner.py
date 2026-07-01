@@ -38,6 +38,7 @@ class DDCRSManager:
         self.websocket = None
         
         self.subscribed_codes = set()
+        self.last_trigger_minute = {}
 
     def start(self, chat_id=None) -> str:
         with self.lock:
@@ -190,6 +191,7 @@ class DDCRSManager:
                         success = self._init_candles(stk_cd)
                         if success:
                             self._subscribe_stock(stk_cd)
+                        time.sleep(0.5)  # API 요청 속도 제한(429) 방지
                             
                 # Handle removed codes (sold or closed)
                 with self.lock:
@@ -411,6 +413,10 @@ class DDCRSManager:
             if len(candles) < L + 1:
                 return
                 
+            # 동일 분봉 내 중복 트리거 방지
+            if self.last_trigger_minute.get(stk_cd) == minute_key:
+                return
+                
             prev_candles = candles[:-1]
             prev_short_ma = self._calculate_ma(prev_candles, S)
             prev_long_ma = self._calculate_ma(prev_candles, L)
@@ -423,6 +429,7 @@ class DDCRSManager:
                 
             # Dead Cross Check: prev_short >= prev_long AND curr_short < curr_long
             if prev_short_ma >= prev_long_ma and curr_short_ma < curr_long_ma:
+                self.last_trigger_minute[stk_cd] = minute_key
                 stock_info["is_selling"] = True
                 
                 logger.info(
@@ -478,16 +485,26 @@ class DDCRSManager:
                 f"━━━━━━━━━━━━━━━━━━━"
             )
         else:
+            err_msg = res.get('error_msg', '')
             msg = (
                 f"❌ [데드크로스 매도 주문 실패]\n"
                 f"━━━━━━━━━━━━━━━━━━━\n"
                 f"종목명: {stk_nm if stk_nm else '알수없음'}\n"
                 f"종목코드: {stk_cd}\n"
-                f"실패 사유: {res.get('error_msg')}\n"
+                f"실패 사유: {err_msg}\n"
                 f"━━━━━━━━━━━━━━━━━━━"
             )
+            # 일시적 오류(네트워크 등)일 때만 플래그를 복구하여 무한 재시도를 방지함
+            is_transient = "네트워크" in err_msg or "오류" in err_msg or "Exception" in err_msg
+            if "주문가능수량" in err_msg or "비밀번호" in err_msg:
+                is_transient = False
+                
             with self.lock:
                 if stk_cd in self.tracked_stocks:
-                    self.tracked_stocks[stk_cd]["is_selling"] = False
+                    if is_transient:
+                        self.tracked_stocks[stk_cd]["is_selling"] = False
+                        logger.info(f"일시적 오류로 {stk_cd} 감시 플래그 초기화 (재시도 허용)")
+                    else:
+                        logger.info(f"영구적 오류로 {stk_cd} 감시 플래그 유지 (재시도 차단): {err_msg}")
                     
         reply_message(chat_id, msg)

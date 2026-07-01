@@ -37,6 +37,7 @@ class GDCRSManager:
         self.websocket = None
         
         self.subscribed_codes = set()
+        self.last_trigger_minute = {}
 
     def start(self, chat_id=None) -> str:
         with self.lock:
@@ -200,6 +201,7 @@ class GDCRSManager:
                         success = self._init_candles(stk_cd)
                         if success:
                             self._subscribe_stock(stk_cd)
+                        time.sleep(0.5)  # API 요청 속도 제한(429) 방지
                             
                 # Handle removed codes
                 with self.lock:
@@ -408,6 +410,10 @@ class GDCRSManager:
             if len(candles) < L + 1:
                 return
                 
+            # 동일 분봉 내 중복 트리거 방지
+            if self.last_trigger_minute.get(stk_cd) == minute_key:
+                return
+                
             prev_candles = candles[:-1]
             prev_short_ma = self._calculate_ma(prev_candles, S)
             prev_long_ma = self._calculate_ma(prev_candles, L)
@@ -419,6 +425,7 @@ class GDCRSManager:
                 return
                 
             if prev_short_ma <= prev_long_ma and curr_short_ma > curr_long_ma:
+                self.last_trigger_minute[stk_cd] = minute_key
                 stock_info["is_buying"] = True
                 
                 logger.info(
@@ -466,9 +473,21 @@ class GDCRSManager:
             reply_message(chat_id, res_msg)
             
             if "성공" not in res_msg:
+                # 일시적 오류(네트워크 등)일 때만 플래그를 복구하고, 
+                # 금액 부족 등 영구적 설정 오류인 경우 플래그를 복구하지 않아 무한 재시도를 방지함
+                is_transient = "네트워크" in res_msg or "오류" in res_msg or "Exception" in res_msg
+                if "현재가보다 작아" in res_msg:
+                    is_transient = False
+                elif "주문 접수 오류" in res_msg:
+                    is_transient = False
+                    
                 with self.lock:
                     if stk_cd in self.tracked_stocks:
-                        self.tracked_stocks[stk_cd]["is_buying"] = False
+                        if is_transient:
+                            self.tracked_stocks[stk_cd]["is_buying"] = False
+                            logger.info(f"일시적 오류로 {stk_cd} 감시 플래그 초기화 (재시도 허용)")
+                        else:
+                            logger.info(f"영구적 오류로 {stk_cd} 감시 플래그 유지 (재시도 차단): {res_msg}")
         except Exception as e:
             logger.error(f"골든크로스 매수 실행 중 오류: {e}")
             reply_message(chat_id, f"❌ [골든크로스 매수 오류] {stk_cd} 주문 중 예외 발생: {e}")
