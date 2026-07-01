@@ -16,6 +16,7 @@ from telegram.commands.gdcrs import gdcrs_command
 from telegram.commands.ddcrs import ddcrs_command
 from telegram.commands.conditional_search import conditional_search_command
 from telegram.commands.jggs import jggs_command
+from telegram.commands.trst import trst_command
 
 # 명령어 등록 매핑
 COMMANDS = {
@@ -41,7 +42,8 @@ COMMANDS = {
     "gdcrs": gdcrs_command,
     "ddcrs": ddcrs_command,
     "cond": conditional_search_command,
-    "jggs": jggs_command
+    "jggs": jggs_command,
+    "trst": trst_command
 }
 
 

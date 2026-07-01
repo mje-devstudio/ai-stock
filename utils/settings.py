@@ -17,7 +17,9 @@ DEFAULT_SETTINGS = {
     "ddcrs_long": 20,
     "gdcrs_active": False,
     "ddcrs_active": False,
-    "stls_active": False
+    "stls_active": False,
+    "trailing_stop_drop_ratio": 3.0,
+    "trailing_stop_min_profit": 5.0
 }
 
 
