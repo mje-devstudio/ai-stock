@@ -101,7 +101,8 @@ def monitor_order_timeout(stk_cd, ord_no, qty, ord_pric, timeout, action):
                     f"🏢 종목: {target_order['stk_nm']} ({stk_cd})\n"
                     f"기존 주문번호: #{ord_no} ({ord_pric:,}원)\n"
                     f"신규 주문번호: #{new_ord_no} (시장가 / 단가 0원 매수 접수)\n"
-                    f"사유: 호가 상향 중 현재가({cur_prc:,}원) 도달로 시장가(단가 0) 전환\n"
+                    f"전환 당시 시장가: {cur_prc:,}원\n"
+                    f"사유: 호가 상향 중 현재가({cur_prc:,}원) 도달로 시장가 전환\n"
                     f"━━━━━━━━━━━━━━━━━━━"
                 )
                 reply_message(telegram_chat_id, msg)
