@@ -10,5 +10,9 @@
     "ddcrs_long": 20,
     "gdcrs_active": false,
     "ddcrs_active": false,
-    "stls_active": false
+    "stls_active": false,
+    "jggs_active": false,
+    "trst_active": false,
+    "trailing_stop_drop_ratio": 2.0,
+    "trailing_stop_min_profit": 4.5
 }

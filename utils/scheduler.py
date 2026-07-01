@@ -32,6 +32,7 @@ def scheduler_loop():
     last_stls_restart_date = None
     last_jggs_restart_date = None
     last_jggs_stop_date = None
+    last_trst_restart_date = None
     
     while True:
         try:
@@ -107,6 +108,23 @@ def scheduler_loop():
                         send_notification(f"❌ 조건검색 자동 재기동 실패: {jggs_err}")
                 else:
                     last_jggs_restart_date = today_str
+
+            # 1.3.1. 평일 장 시작 시간 트레일링 스탑 감시 자동 재시작
+            if current_time_str == market_start_time and now.weekday() < 5 and last_trst_restart_date != today_str:
+                if get_setting("trst_active", False):
+                    send_notification("⏰ 평일 장 시작 시간이 되어 트레일링 스탑 감시를 자동 재기동합니다...")
+                    try:
+                        from realtime.trst_runner import TRSTManager
+                        manager = TRSTManager()
+                        if manager.active:
+                            manager.stop()
+                        start_res = manager.start()
+                        send_notification(f"🔄 트레일링 스탑 재기동 결과: {start_res if start_res else '성공'}")
+                        last_trst_restart_date = today_str
+                    except Exception as trst_err:
+                        send_notification(f"❌ 트레일링 스탑 자동 재기동 실패: {trst_err}")
+                else:
+                    last_trst_restart_date = today_str
 
             # 1.4. 평일 장 종료 시간 조건검색 감시 자동 일시정지 (stop)
             market_end_time = get_setting("market_end_time") or "15:30"
