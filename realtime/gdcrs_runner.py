@@ -354,7 +354,7 @@ class GDCRSManager:
         
         from telegram.commands.buy import buy_command
         try:
-            res_msg = buy_command([stk_cd, "max", str(amount)], chat_id=chat_id)
+            res_msg = buy_command([stk_cd, "max", str(amount)], chat_id=chat_id, is_auto=True)
             logger.info(f"골든크로스 매수 주문 응답: {res_msg}")
             
             reply_message(chat_id, res_msg)

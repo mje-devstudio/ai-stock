@@ -55,7 +55,7 @@ COMMANDS = {
 }
 
 
-def dispatch_command(message_text: str, chat_id: str = None) -> str:
+def dispatch_command(message_text: str, chat_id: str = None, is_auto: bool = False) -> str:
     """
     메시지 텍스트를 파싱하여 알맞은 명령어로 라우팅합니다.
     명령어와 파라미터는 공백으로 구분되며, 대소문자를 구분하지 않습니다.
@@ -73,6 +73,8 @@ def dispatch_command(message_text: str, chat_id: str = None) -> str:
     handler = COMMANDS.get(cmd)
     if handler:
         try:
+            if handler == buy_command:
+                return handler(args, chat_id=chat_id, is_auto=is_auto)
             return handler(args, chat_id=chat_id)
         except Exception as e:
             return f"명령어 처리 중 내부 오류가 발생했습니다: {str(e)}"

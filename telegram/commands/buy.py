@@ -3,7 +3,7 @@ from api.stock import get_stock_basic_info
 from utils.stock_code import clean_stock_code
 from utils.market import get_price_down_by_ticks
 
-def buy_command(args: list, chat_id: str = None) -> str:
+def buy_command(args: list, chat_id: str = None, is_auto: bool = False) -> str:
     """
     'buy' 명령어를 처리합니다.
     사용법: 
@@ -57,6 +57,23 @@ def buy_command(args: list, chat_id: str = None) -> str:
     from utils.blacklist import BlacklistManager
     if BlacklistManager().is_blacklisted(stk_cd):
         return f"❌ 블랙리스트 제한: 이 종목({stk_cd})은 블랙리스트에 등록되어 있어 매수할 수 없습니다."
+
+    # 자동매매 시 중복 매수 금지 검사
+    if is_auto:
+        from api.stock import get_account_evaluation, get_daily_balance_ratio
+        from api.session import session
+        if getattr(session, 'mode', 'real') == 'paper':
+            eval_res = get_account_evaluation()
+        else:
+            eval_res = get_daily_balance_ratio()
+            
+        if eval_res["success"]:
+            holdings = eval_res.get("holdings", [])
+            for h in holdings:
+                h_stk_cd = clean_stock_code(h.get("stk_cd", ""))
+                h_qty = int(h.get("rmnd_qty", 0))
+                if h_stk_cd == stk_cd and h_qty > 0:
+                    return f"❌ 자동매매 매수 차단: 해당 종목({stk_cd})은 이미 보유 중인 종목입니다. (중복 매수 금지)"
 
     # 쿨다운 검사
     from utils.cooldown import CooldownManager

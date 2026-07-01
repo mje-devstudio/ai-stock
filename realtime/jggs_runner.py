@@ -156,7 +156,7 @@ class JGGSManager:
                 
             try:
                 # 텔레그램 명령어 디스패처를 통해 실행 (내부 API 호출)
-                result = dispatch_command(actual_cmd, chat_id=target_chat)
+                result = dispatch_command(actual_cmd, chat_id=target_chat, is_auto=True)
                 logger.info(f"JGGS 명령어({actual_cmd}) 실행 결과: {result}")
                 if target_chat:
                     reply_message(target_chat, f"✅ [JGGS 실행 결과]\n{result}")
