@@ -8,6 +8,7 @@ def jggs_command(args: list, chat_id: str = None) -> str:
       2. 배정 목록 조회: jggs list
       3. 배정 삭제: jggs remove {일련번호} (예: jggs remove 1)
       4. 배정 전체 비우기: jggs clear
+      5. 실시간 조건검색 수신 테스트: jggs test
     """
     if not args:
         return (
@@ -15,7 +16,8 @@ def jggs_command(args: list, chat_id: str = None) -> str:
             "• 명령어 배정: jggs add {조건식번호} {명령어} (예: jggs add 0 buy () max 100000)\n"
             "• 목록 조회: jggs list\n"
             "• 배정 삭제: jggs remove {일련번호} (예: jggs remove 1)\n"
-            "• 전체 비우기: jggs clear"
+            "• 전체 비우기: jggs clear\n"
+            "• 수신 테스트: jggs test"
         )
 
     sub_cmd = args[0].lower()
@@ -95,6 +97,41 @@ def jggs_command(args: list, chat_id: str = None) -> str:
         else:
             return "❌ 목록 비우기 중 오류가 발생했습니다."
 
+    elif sub_cmd == "test":
+        commands = load_jggs_commands()
+        if not commands:
+            return "📋 등록된 조건식 배정 명령이 없습니다. 먼저 `jggs add`로 명령을 등록해주세요."
+            
+        from realtime.websocket_manager import WebsocketManager
+        import logging
+        
+        ws_manager = WebsocketManager()
+        ws_manager.start()
+        
+        logger = logging.getLogger(__name__)
+        
+        def make_test_callback(cond_id, command_str):
+            def test_callback(tick):
+                # tick values: {'841': 'seq', '9001': 'code', '843': 'I' or 'D', ...}
+                values = tick.get("values", {})
+                stk_cd = tick.get("item") or values.get("9001")
+                status = values.get("843")
+                status_str = "진입(I)" if status == "I" else "이탈(D)" if status == "D" else status
+                msg = f"[조건검색 실시간 테스트] seq: {cond_id}, 종목코드: {stk_cd}, 상태: {status_str}, 연결된 명령: {command_str}"
+                print(msg)
+                logger.info(msg)
+            return test_callback
+            
+        registered_seqs = set()
+        for item in commands:
+            cond_id = item['cond_id']
+            if cond_id not in registered_seqs:
+                registered_seqs.add(cond_id)
+                cb = make_test_callback(cond_id, item['command'])
+                ws_manager.register_cnsr(cond_id, cb)
+                
+        return f"✅ {len(registered_seqs)}개의 조건식에 대한 실시간 수신 테스트를 시작합니다. 터미널 로그를 확인해주세요."
+
     else:
         return (
             f"올바르지 않은 하위 명령입니다: {sub_cmd}\n"
@@ -102,5 +139,6 @@ def jggs_command(args: list, chat_id: str = None) -> str:
             "• jggs add {조건식번호} {명령어}\n"
             "• jggs list\n"
             "• jggs remove {일련번호}\n"
-            "• jggs clear"
+            "• jggs clear\n"
+            "• jggs test"
         )

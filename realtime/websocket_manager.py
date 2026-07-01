@@ -27,6 +27,8 @@ class WebsocketManager:
         self.lock = threading.RLock()
         self.subscribers = {}  # { stk_cd: set(callbacks) }
         self.registered_codes = set()
+        self.cnsr_subscribers = {}  # { seq: set(callbacks) }
+        self.registered_cnsr = set()
         self.cnsrlst_event = threading.Event()
         self.cnsrlst_data = None
 
@@ -48,6 +50,8 @@ class WebsocketManager:
                 asyncio.run_coroutine_threadsafe(self._close_websocket(), self.loop)
             self.subscribers.clear()
             self.registered_codes.clear()
+            self.cnsr_subscribers.clear()
+            self.registered_cnsr.clear()
             logger.info("공용 웹소켓 매니저가 중지되었습니다.")
 
     def get_conditional_search_list(self, timeout=10) -> dict:
@@ -99,6 +103,31 @@ class WebsocketManager:
                     del self.subscribers[stk_cd]
                     self._unsubscribe_stock(stk_cd)
 
+    def _send_bulk_subscribe(self):
+        with self.lock:
+            if not self.loop or not self.websocket or not self.subscribers:
+                return
+                
+            stock_list = list(self.subscribers.keys())
+            self.registered_codes.update(stock_list)
+            
+            chunk_size = 100
+            for i in range(0, len(stock_list), chunk_size):
+                chunk = stock_list[i:i+chunk_size]
+                reg_packet = {
+                    "trnm": "REG",
+                    "grp_no": "1",
+                    "refresh": "1" if i == 0 else "0",
+                    "data": [
+                        {
+                            "item": chunk,
+                            "type": ["0B"]
+                        }
+                    ]
+                }
+                asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(reg_packet)), self.loop)
+                logger.info(f"공용 웹소켓 실시간 등록(REG) 일괄 전송: {len(chunk)} 종목")
+
     def _subscribe_stock(self, stk_cd):
         with self.lock:
             if self.loop and self.websocket and stk_cd not in self.registered_codes:
@@ -106,7 +135,7 @@ class WebsocketManager:
                 reg_packet = {
                     "trnm": "REG",
                     "grp_no": "1",
-                    "refresh": "1",
+                    "refresh": "0",
                     "data": [
                         {
                             "item": [stk_cd],
@@ -134,6 +163,43 @@ class WebsocketManager:
                 asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(remove_packet)), self.loop)
                 logger.info(f"공용 웹소켓 실시간 해제(REMOVE) 전송: {stk_cd}")
 
+    def request_conditional_search_realtime(self, seq, search_type="1", stex_tp="K"):
+        """조건검색 실시간 요청(CNSRREQ)"""
+        with self.lock:
+            seq_str = str(seq)
+            if self.loop and self.websocket and seq_str not in self.registered_cnsr:
+                self.registered_cnsr.add(seq_str)
+                req_packet = {
+                    "trnm": "CNSRREQ",
+                    "seq": seq_str,
+                    "search_type": search_type,
+                    "stex_tp": stex_tp
+                }
+                asyncio.run_coroutine_threadsafe(self.websocket.send(json.dumps(req_packet)), self.loop)
+                logger.info(f"웹소켓 조건검색 실시간(CNSRREQ) 전송: seq={seq_str}")
+
+    def register_cnsr(self, seq, callback):
+        seq_str = str(seq)
+        with self.lock:
+            if seq_str not in self.cnsr_subscribers:
+                self.cnsr_subscribers[seq_str] = set()
+            self.cnsr_subscribers[seq_str].add(callback)
+            
+            if not self.active:
+                self.start()
+                
+            self.request_conditional_search_realtime(seq_str)
+
+    def unregister_cnsr(self, seq, callback):
+        seq_str = str(seq)
+        with self.lock:
+            if seq_str in self.cnsr_subscribers:
+                self.cnsr_subscribers[seq_str].discard(callback)
+                if not self.cnsr_subscribers[seq_str]:
+                    del self.cnsr_subscribers[seq_str]
+                    # Note: ka10174 (CNSRREL) is not implemented yet. 
+                    # For now we just remove the callback.
+
     def _ws_event_loop_runner(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -152,6 +218,7 @@ class WebsocketManager:
             
             with self.lock:
                 self.registered_codes.clear()
+                self.registered_cnsr.clear()
                 self.websocket = None
             
             try:
@@ -165,14 +232,6 @@ class WebsocketManager:
                     }
                     await ws.send(json.dumps(login_packet))
                     
-                    login_resp = await ws.recv()
-                    logger.info(f"공용 웹소켓 로그인 응답 수신: {login_resp}")
-                    
-                    # 연결 복구 시 현재 등록되어 있는 모든 코드 재구독
-                    with self.lock:
-                        for stk_cd in self.subscribers.keys():
-                            self._subscribe_stock(stk_cd)
-                            
                     retry_delay = 5
                     
                     async for message in ws:
@@ -182,16 +241,55 @@ class WebsocketManager:
                             root_data = json.loads(message)
                             trnm = root_data.get("trnm")
                             
+                            if trnm == "LOGIN":
+                                logger.info(f"공용 웹소켓 로그인 응답 수신: {root_data}")
+                                if str(root_data.get("return_code")) == "0":
+                                    logger.info("웹소켓 로그인 성공. 조건검색 목록(CNSRLST) 조회를 시작합니다.")
+                                    # 키움 웹소켓 구조상 CNSRREQ 전에 CNSRLST 호출이 필수임
+                                    cnsrlst_req = {"trnm": "CNSRLST"}
+                                    await ws.send(json.dumps(cnsrlst_req))
+                                    
+                                    # 종목 실시간 구독 복구
+                                    with self.lock:
+                                        self._send_bulk_subscribe()
+                                else:
+                                    logger.error(f"웹소켓 로그인 실패: {root_data.get('return_msg')}")
+                                    break
+                                continue
+                            
                             if trnm == "CNSRLST":
                                 self.cnsrlst_data = root_data
                                 self.cnsrlst_event.set()
+                                logger.info("조건검색 목록 수신 완료. 실시간 조건검색(CNSRREQ) 요청을 복구합니다.")
+                                with self.lock:
+                                    for seq in self.cnsr_subscribers.keys():
+                                        self.request_conditional_search_realtime(seq)
+                                continue
+                                
+                            if trnm == "CNSRREQ":
+                                data_list = root_data.get("data")
+                                seq = root_data.get("seq")
+                                if data_list:
+                                    jmcodes = [d.get("jmcode") for d in data_list]
+                                    logger.info(f"조건식 {seq} 실시간 등록 성공. 초기 편입 종목 리스트: {jmcodes}")
+                                else:
+                                    logger.info(f"조건식 {seq} 실시간 등록 성공. 현재 편입된 종목 없음.")
+                                continue
+                                
+                            if trnm == "PING":
+                                await ws.send(message)
                                 continue
                                 
                             if trnm == "REAL":
                                 tick_list = root_data.get("data", [])
                                 for tick in tick_list:
-                                    if tick.get("type") == "0B":
+                                    tick_type = tick.get("type")
+                                    if tick_type == "0B":
                                         self._dispatch_tick(tick)
+                                    elif tick_type == "02":
+                                        self._dispatch_cnsr(tick)
+                            else:
+                                logger.info(f"실시간 시세 서버 응답 수신: {root_data}")
                         except json.JSONDecodeError:
                             logger.error(f"공용 웹소켓 메시지 파싱 에러: {message}")
                         except Exception as e:
@@ -204,6 +302,7 @@ class WebsocketManager:
             finally:
                 with self.lock:
                     self.registered_codes.clear()
+                    self.registered_cnsr.clear()
                     self.websocket = None
                 
             if self.active:
@@ -234,3 +333,19 @@ class WebsocketManager:
                 cb(tick)
             except Exception as e:
                 logger.error(f"공용 웹소켓 콜백 실행 오류 (종목: {stk_cd}): {e}")
+
+    def _dispatch_cnsr(self, tick):
+        # type "02" 에서 seq는 values의 "841"
+        values = tick.get("values", {})
+        seq = values.get("841")
+        if not seq:
+            return
+            
+        with self.lock:
+            callbacks = list(self.cnsr_subscribers.get(str(seq), []))
+            
+        for cb in callbacks:
+            try:
+                cb(tick)
+            except Exception as e:
+                logger.error(f"조건검색 실시간 콜백 실행 오류 (seq: {seq}): {e}")
