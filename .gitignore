@@ -18,3 +18,4 @@ config/config.py
 # Local dynamic user settings
 config/data/settings.json
 config/data/reservations.json
+config/data/jggs_commands.json

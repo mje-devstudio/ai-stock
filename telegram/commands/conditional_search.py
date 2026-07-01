@@ -18,7 +18,7 @@ def conditional_search_command(args: list, chat_id: str = None) -> str:
         return (
             "📋 내 조건식 목록\n"
             "━━━━━━━━━━━━━━━━━━━\n"
-            "등록된 조건식이 없습니다.\n"
+            "이 없습니다.\n"
             "━━━━━━━━━━━━━━━━━━━"
         )
     

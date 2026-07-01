@@ -48,6 +48,12 @@ def help_command(args: list, chat_id: str = None) -> str:
         "• rsv list: 현재 예약 목록 조회",
         "• rsv remove {일련번호}: 특정 예약 명령어 삭제",
         "• rsv remove all: 등록된 모든 예약 명령어 삭제",
+        "",
+        "🔍 [조건식 배정 명령어 관리]",
+        "• jggs add {조건식번호} {명령어}: 조건식에 실행할 명령어 배정 (예: jggs add 0 buy () max 100000)",
+        "• jggs list: 조건식 배정 명령어 목록 조회",
+        "• jggs remove {일련번호}: 특정 배정 명령어 삭제",
+        "• jggs clear: 모든 조건식 배정 명령어 목록 비우기",
         "━━━━━━━━━━━━━━━━━━━"
     ]
     return "\n".join(msg_lines)
