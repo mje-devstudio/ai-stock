@@ -19,6 +19,10 @@ logging.basicConfig(
 # 전역 메시지 큐 생성
 _message_queue = queue.Queue()
 
+# 자연어 명령어 컨펌 대기 상태용 변수
+_pending_commands = {}  # { chat_id_str: [cmd1, cmd2, ...] }
+_pending_lock = threading.Lock()
+
 def _message_sender_worker():
     """백그라운드에서 큐를 감시하며 메시지를 순차적으로 전송합니다."""
     logging.info("텔레그램 메시지 전송 백그라운드 스레드가 시작되었습니다.")
@@ -158,9 +162,65 @@ def start_polling():
                 if not text or not chat_id:
                     continue
                 logging.info(f"메시지 수신 - ChatID: {chat_id}, Text: {text}")
-                # 명령어 실행 및 응답 전송
-                response_text = dispatch_command(text, chat_id=chat_id)
-                reply_message(chat_id, response_text)
+                
+                chat_id_str = str(chat_id)
+                has_pending = False
+                with _pending_lock:
+                    has_pending = chat_id_str in _pending_commands
+                
+                if has_pending:
+                    # 대기 중인 명령어 실행 확인 절차
+                    if text.strip().lower() == 'y':
+                        with _pending_lock:
+                            pending = _pending_commands.pop(chat_id_str, [])
+                        
+                        reply_message(chat_id, f"🚀 총 {len(pending)}개의 명령어를 순차적으로 실행합니다.")
+                        for p_cmd in pending:
+                            reply_message(chat_id, f"➡️ 실행 명령어: `{p_cmd}`")
+                            response_text = dispatch_command(p_cmd, chat_id=chat_id)
+                            reply_message(chat_id, response_text)
+                    else:
+                        with _pending_lock:
+                            _pending_commands.pop(chat_id_str, None)
+                    continue
+                
+                # 등록된 명령어인지 여부 판별
+                cleaned_text = text.strip()
+                is_cmd = False
+                if cleaned_text:
+                    parts = cleaned_text.split()
+                    cmd_word = parts[0].lower()
+                    if cmd_word.startswith('/'):
+                        cmd_word = cmd_word[1:]
+                    from telegram.commands import COMMANDS
+                    is_cmd = cmd_word in COMMANDS
+                
+                if is_cmd:
+                    # 일반 명령어 실행
+                    response_text = dispatch_command(text, chat_id=chat_id)
+                    reply_message(chat_id, response_text)
+                else:
+                    # 자연어 명령어 처리 (Gemini API 호출)
+                    reply_message(chat_id, "🤖 자연어 지시를 분석 중입니다...")
+                    try:
+                        from telegram.natural_language import parse_natural_language_to_commands
+                        cmds = parse_natural_language_to_commands(text)
+                    except Exception as e:
+                        logging.error(f"자연어 명령어 변환 모듈 실행 오류: {e}")
+                        reply_message(chat_id, f"❌ 자연어 분석 기능 실행 중 오류가 발생했습니다: {e}")
+                        continue
+                    
+                    if cmds:
+                        with _pending_lock:
+                            _pending_commands[chat_id_str] = cmds
+                        cmd_list_str = "\n".join(f"{idx}. `{c}`" for idx, c in enumerate(cmds, 1))
+                        msg = (
+                            f"{cmd_list_str}\n\n"
+                            "실행(Y)"
+                        )
+                        reply_message(chat_id, msg)
+                    else:
+                        reply_message(chat_id, "❌ 분석 실패: 입력하신 자연어에서 실행 가능한 명령어를 찾을 수 없거나 분석에 실패했습니다.")
                     
                 
         except KeyboardInterrupt:
